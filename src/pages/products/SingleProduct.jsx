@@ -1,8 +1,9 @@
-// src/pages/products/SingleProduct.jsx
+// frontend/src/pages/products/SingleProduct.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import { ArrowLeft, ShoppingBag, Star, Package } from 'lucide-react';
 import { formatPrice } from '../../data/mockData';
+import API_URL from '../../utils/api';
 
 const SingleProduct = () => {
   const { id } = useParams();
@@ -19,9 +20,10 @@ const SingleProduct = () => {
       try {
         setLoading(true);
         console.log('🔍 Fetching product:', id);
+        console.log('🌐 API URL:', API_URL);
 
         // Fetch product detail
-        const response = await fetch(`http://localhost:5000/api/products/${id}`);
+        const response = await fetch(`${API_URL}/api/products/${id}`);
         const data = await response.json();
 
         if (data.success) {
@@ -30,7 +32,7 @@ const SingleProduct = () => {
 
           // Fetch related products
           const relatedResponse = await fetch(
-            `http://localhost:5000/api/products/${id}/related`
+            `${API_URL}/api/products/${id}/related`
           );
           const relatedData = await relatedResponse.json();
           
@@ -65,6 +67,9 @@ const SingleProduct = () => {
     return (
       <div className="container mx-auto px-4 py-12 text-center">
         <h2 className="text-2xl font-bold mb-4">Không tìm thấy sản phẩm</h2>
+        <p className="text-gray-600 mb-4">
+          Sản phẩm có thể đã bị xóa hoặc không tồn tại.
+        </p>
         <button 
           onClick={() => navigate('/')}
           className="px-6 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800"
@@ -118,6 +123,9 @@ const SingleProduct = () => {
                 src={product.image} 
                 alt={product.name}
                 className="w-full h-[400px] md:h-[600px] object-cover"
+                onError={(e) => {
+                  e.target.src = 'https://via.placeholder.com/600x600?text=No+Image';
+                }}
               />
               <div className="absolute top-4 right-4 bg-white px-3 py-1.5 rounded-full text-sm font-semibold text-gray-700">
                 {product.category}
@@ -255,6 +263,9 @@ const SingleProduct = () => {
                     src={relatedProduct.image} 
                     alt={relatedProduct.name}
                     className="w-full h-40 object-cover"
+                    onError={(e) => {
+                      e.target.src = 'https://via.placeholder.com/400x400?text=No+Image';
+                    }}
                   />
                   <div className="p-3">
                     <h3 className="font-medium text-sm line-clamp-1 mb-1">
@@ -272,6 +283,16 @@ const SingleProduct = () => {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Debug Info - Development only */}
+        {import.meta.env.DEV && (
+          <div className="mt-6 p-4 bg-gray-100 rounded-lg text-xs">
+            <p className="font-semibold text-gray-700 mb-1">Debug Info:</p>
+            <p className="text-gray-600">API URL: {API_URL}</p>
+            <p className="text-gray-600">Product ID: {id}</p>
+            <p className="text-gray-600">Mode: {import.meta.env.MODE}</p>
           </div>
         )}
       </div>
