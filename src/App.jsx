@@ -81,7 +81,7 @@ function App() {
         }
       } catch (error) {
         console.error('❌ Error fetching products from API:', error);
-        console.log('⚠️  Fallback to localStorage or mockData');
+        console.log('⚠️ Fallback to localStorage or mockData');
         
         // Fallback 1: Try localStorage
         const storedProducts = localStorage.getItem('products');
@@ -157,13 +157,13 @@ function App() {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  // Cart functions
+  // 🔥 FIX: Cart functions - DÙng INDEX thay vì cartId
   const addToCart = (product, size = null) => {
+    console.log('➕ Adding to cart:', product.name);
     const newItem = {
       ...product,
       selectedSize: size,
-      quantity: 1,
-      cartId: Date.now()
+      quantity: 1
     };
     const newCart = [...cart, newItem];
     setCart(newCart);
@@ -171,21 +171,41 @@ function App() {
     alert(`Đã thêm "${product.name}" vào giỏ hàng!`);
   };
 
-  const removeFromCart = (cartId) => {
-    const newCart = cart.filter(item => item.cartId !== cartId);
+  // 🔥 FIX: Remove by INDEX
+  const removeFromCart = (indexToRemove) => {
+    console.log('🗑️ Removing item at index:', indexToRemove);
+    console.log('📦 Current cart before removal:', cart);
+    
+    const newCart = cart.filter((_, index) => index !== indexToRemove);
+    
+    console.log('✅ New cart after removal:', newCart);
     setCart(newCart);
     localStorage.setItem('cart', JSON.stringify(newCart));
   };
 
-  const updateCartQuantity = (cartId, quantity) => {
-    const newCart = cart.map(item => 
-      item.cartId === cartId ? { ...item, quantity } : item
-    );
+  // 🔥 FIX: Update by INDEX
+  const updateCartItemQuantity = (index, newQuantity) => {
+    console.log('🔄 Updating quantity at index:', index, 'to:', newQuantity);
+    
+    if (newQuantity < 1) {
+      removeFromCart(index);
+      return;
+    }
+
+    const newCart = cart.map((item, i) => {
+      if (i === index) {
+        return { ...item, quantity: newQuantity };
+      }
+      return item;
+    });
+
+    console.log('✅ Updated cart:', newCart);
     setCart(newCart);
     localStorage.setItem('cart', JSON.stringify(newCart));
   };
 
   const clearCart = () => {
+    console.log('🧹 Clearing cart...');
     setCart([]);
     localStorage.removeItem('cart');
   };
@@ -237,7 +257,7 @@ function App() {
           currentUser,
           addToCart, 
           removeFromCart,
-          updateCartQuantity,
+          updateCartItemQuantity, // 🔥 FIX: Đổi tên cho đúng
           clearCart,
           setProducts,
           setCurrentUser,
