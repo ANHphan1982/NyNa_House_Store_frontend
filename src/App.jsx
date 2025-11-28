@@ -1,19 +1,21 @@
-// src/App.jsx
+// frontend/src/App.jsx
 import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import { INITIAL_PRODUCTS } from './data/mockData';
+import API_URL from './utils/api';
 
 function App() {
   const [products, setProducts] = useState([]);
   const [cart, setCart] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const location = useLocation();
 
   // Load user từ localStorage
   useEffect(() => {
-    console.log('🔄 App mounted - Loading user...');
+    console.log('📄 App mounted - Loading user...');
     
     const savedUser = localStorage.getItem('user');
     const token = localStorage.getItem('token');
@@ -31,44 +33,103 @@ function App() {
     }
   }, []);
 
-  // 🔥 Load products và lắng nghe thay đổi
+  // 🔥 FETCH PRODUCTS TỪ API
   useEffect(() => {
-    // Function để load products
-    const loadProducts = () => {
-      const storedProducts = localStorage.getItem('products');
-      if (storedProducts) {
-        const parsed = JSON.parse(storedProducts);
-        console.log('📦 Products loaded:', parsed.length, 'items');
-        setProducts(parsed);
-      } else {
-        console.log('📦 No products found, using INITIAL_PRODUCTS');
-        setProducts(INITIAL_PRODUCTS);
-        localStorage.setItem('products', JSON.stringify(INITIAL_PRODUCTS));
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        console.log('🔍 Fetching products from:', API_URL);
+        
+        const response = await fetch(`${API_URL}/api/products?limit=100`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+
+        console.log('📡 Response status:', response.status);
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('📦 API Response:', data);
+
+        if (data.success && data.products && data.products.length > 0) {
+          // Format products để match với localStorage format
+          const formattedProducts = data.products.map(p => ({
+            id: p.productId || p._id,
+            _id: p._id,
+            productId: p.productId,
+            name: p.name,
+            category: p.category,
+            price: p.price,
+            image: p.image,
+            description: p.description,
+            rating: p.rating || 0,
+            reviews: p.reviews || 0,
+            stock: p.stock || 0,
+            sizes: p.sizes || []
+          }));
+          
+          console.log('✅ Products loaded from API:', formattedProducts.length);
+          setProducts(formattedProducts);
+          localStorage.setItem('products', JSON.stringify(formattedProducts));
+        } else {
+          throw new Error('No products returned from API');
+        }
+      } catch (error) {
+        console.error('❌ Error fetching products from API:', error);
+        console.log('⚠️  Fallback to localStorage or mockData');
+        
+        // Fallback 1: Try localStorage
+        const storedProducts = localStorage.getItem('products');
+        if (storedProducts) {
+          try {
+            const parsed = JSON.parse(storedProducts);
+            console.log('📦 Using products from localStorage:', parsed.length);
+            setProducts(parsed);
+          } catch (e) {
+            console.error('❌ Error parsing localStorage:', e);
+            useMockData();
+          }
+        } else {
+          useMockData();
+        }
+      } finally {
+        setLoading(false);
       }
     };
 
-    // Load lần đầu
-    loadProducts();
+    const useMockData = () => {
+      console.log('📦 Using mockData:', INITIAL_PRODUCTS.length);
+      setProducts(INITIAL_PRODUCTS);
+      localStorage.setItem('products', JSON.stringify(INITIAL_PRODUCTS));
+    };
 
-    // 🔥 Lắng nghe sự kiện 'productsUpdated'
+    fetchProducts();
+
+    // 🔥 Listen for products update event
     const handleProductsUpdate = () => {
       console.log('🔔 Products updated event received!');
-      loadProducts();
+      fetchProducts();
     };
 
     window.addEventListener('productsUpdated', handleProductsUpdate);
-
-    // Cleanup
-    return () => {
-      window.removeEventListener('productsUpdated', handleProductsUpdate);
-    };
+    return () => window.removeEventListener('productsUpdated', handleProductsUpdate);
   }, []);
 
   // Load cart
   useEffect(() => {
     const savedCart = localStorage.getItem('cart');
     if (savedCart) {
-      setCart(JSON.parse(savedCart));
+      try {
+        setCart(JSON.parse(savedCart));
+      } catch (error) {
+        console.error('❌ Error parsing cart:', error);
+        localStorage.removeItem('cart');
+      }
     }
   }, []);
 
@@ -145,6 +206,19 @@ function App() {
 
   const isAdminRoute = location.pathname.startsWith('/admin') || 
                        location.pathname.startsWith('/dashboard');
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-gray-900 mx-auto"></div>
+          <p className="mt-4 text-lg text-gray-600 font-medium">Đang tải sản phẩm...</p>
+          <p className="mt-2 text-sm text-gray-500">Vui lòng đợi trong giây lát</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
