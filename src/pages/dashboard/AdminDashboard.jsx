@@ -1,4 +1,4 @@
-// src/pages/dashboard/AdminDashboard.jsx
+// frontend/src/pages/dashboard/AdminDashboard.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -17,6 +17,7 @@ import {
   Truck
 } from 'lucide-react';
 import RevenueChart from '../../components/RevenueChart';
+import API_URL from '../../utils/api';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -42,8 +43,10 @@ const AdminDashboard = () => {
       setLoading(true);
       const token = localStorage.getItem('token');
 
-      // 🔥 Fetch Admin Stats
-      const statsResponse = await fetch('http://localhost:5000/api/admin/stats', {
+      console.log('📊 Fetching dashboard data from:', API_URL);
+
+      // Fetch Admin Stats
+      const statsResponse = await fetch(`${API_URL}/api/admin/stats`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -53,11 +56,12 @@ const AdminDashboard = () => {
         const statsData = await statsResponse.json();
         if (statsData.success) {
           setStats(statsData.stats);
+          console.log('✅ Stats loaded:', statsData.stats);
         }
       }
 
-      // 🔥 Fetch Recent Orders
-      const ordersResponse = await fetch('http://localhost:5000/api/orders?limit=5', {
+      // Fetch Recent Orders
+      const ordersResponse = await fetch(`${API_URL}/api/orders?limit=5`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -67,6 +71,7 @@ const AdminDashboard = () => {
         const ordersData = await ordersResponse.json();
         if (ordersData.success) {
           setRecentOrders(ordersData.orders);
+          console.log('✅ Recent orders loaded:', ordersData.orders.length);
         }
       }
     } catch (error) {
@@ -392,6 +397,15 @@ const AdminDashboard = () => {
             </table>
           </div>
         </div>
+
+        {/* Debug Info */}
+        {import.meta.env.DEV && (
+          <div className="mt-6 p-4 bg-gray-100 rounded-lg text-xs">
+            <p className="font-semibold text-gray-700 mb-1">Debug Info:</p>
+            <p className="text-gray-600">API URL: {API_URL}</p>
+            <p className="text-gray-600">Mode: {import.meta.env.MODE}</p>
+          </div>
+        )}
       </div>
     </div>
   );

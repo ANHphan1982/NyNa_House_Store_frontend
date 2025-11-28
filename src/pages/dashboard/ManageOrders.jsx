@@ -12,6 +12,7 @@ import {
   Eye,
   Package
 } from 'lucide-react';
+import API_URL from '../../utils/api';
 
 const ManageOrders = () => {
   const navigate = useNavigate();
@@ -34,10 +35,12 @@ const ManageOrders = () => {
       setLoading(true);
       const token = localStorage.getItem('token');
       
-      let url = `http://localhost:5000/api/orders?page=${pagination.page}&limit=20`;
+      let url = `${API_URL}/api/orders?page=${pagination.page}&limit=20`;
       if (selectedStatus) {
         url += `&status=${selectedStatus}`;
       }
+
+      console.log('📦 Fetching orders from:', url);
 
       const response = await fetch(url, {
         headers: {

@@ -13,6 +13,7 @@ import {
   Mail,
   CreditCard
 } from 'lucide-react';
+import API_URL from '../../utils/api';
 
 const OrderDetail = () => {
   const { id } = useParams();
@@ -30,7 +31,9 @@ const OrderDetail = () => {
       setLoading(true);
       const token = localStorage.getItem('token');
 
-      const response = await fetch(`http://localhost:5000/api/orders/${id}`, {
+      console.log('🔍 Fetching order from:', `${API_URL}/api/orders/${id}`);
+
+      const response = await fetch(`${API_URL}/api/orders/${id}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -62,7 +65,7 @@ const OrderDetail = () => {
       setUpdating(true);
       const token = localStorage.getItem('token');
 
-      const response = await fetch(`http://localhost:5000/api/orders/${id}/status`, {
+      const response = await fetch(`${API_URL}/api/orders/${id}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -75,7 +78,7 @@ const OrderDetail = () => {
 
       if (data.success) {
         alert('Cập nhật trạng thái thành công!');
-        fetchOrderDetail(); // Reload order
+        fetchOrderDetail();
       } else {
         alert('Lỗi: ' + data.message);
       }
