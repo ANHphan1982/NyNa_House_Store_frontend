@@ -83,6 +83,12 @@ const router = createBrowserRouter(
             path: "/dashboard",
             element: <AdminRoute><AdminDashboard /></AdminRoute>
         },
+        // 🔥 FIX: Đổi thành /dashboard/products/add
+        {
+            path: "/dashboard/products/add",
+            element: <AdminRoute><AddProducts /></AdminRoute>
+        },
+        // 🔥 KEEP: Old route for backward compatibility
         {
             path: "/dashboard/add-product",
             element: <AdminRoute><AddProducts /></AdminRoute>
@@ -91,11 +97,17 @@ const router = createBrowserRouter(
             path: "/dashboard/manage-products",
             element: <AdminRoute><ManageProducts /></AdminRoute>
         },
+        // 🔥 FIX: Đổi thành /dashboard/products/edit/:id
+        {
+            path: "/dashboard/products/edit/:id",
+            element: <AdminRoute><UpdateProduct /></AdminRoute>
+        },
+        // 🔥 KEEP: Old route for backward compatibility
         {
             path: "/dashboard/edit-product/:id",
             element: <AdminRoute><UpdateProduct /></AdminRoute>
         },
-        // 🔥 THÊM MỚI: Order Management Routes
+        // Order Management Routes
         {
             path: "/dashboard/manage-orders",
             element: <AdminRoute><ManageOrders /></AdminRoute>

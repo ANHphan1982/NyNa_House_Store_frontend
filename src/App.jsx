@@ -15,7 +15,7 @@ function App() {
 
   // Load user từ localStorage
   useEffect(() => {
-    console.log('📄 App mounted - Loading user...');
+    console.log('🔄 App mounted - Loading user...');
     
     const savedUser = localStorage.getItem('user');
     const token = localStorage.getItem('token');
@@ -157,7 +157,7 @@ function App() {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  // 🔥 FIX: Cart functions - DÙng INDEX thay vì cartId
+  // 🔥 FIX: Cart functions - DÙNG INDEX thay vì cartId
   const addToCart = (product, size = null) => {
     console.log('➕ Adding to cart:', product.name);
     const newItem = {
@@ -257,7 +257,7 @@ function App() {
           currentUser,
           addToCart, 
           removeFromCart,
-          updateCartItemQuantity, // 🔥 FIX: Đổi tên cho đúng
+          updateCartItemQuantity,
           clearCart,
           setProducts,
           setCurrentUser,
