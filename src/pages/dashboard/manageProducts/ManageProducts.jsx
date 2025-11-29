@@ -1,7 +1,7 @@
 // frontend/src/pages/dashboard/ManageProducts.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Edit, Trash2, Plus, Search, Package } from 'lucide-react';
+import { Edit, Trash2, Plus, Search, Package, RefreshCw } from 'lucide-react';
 import { formatPrice } from '../../data/mockData';
 import API_URL from '../../utils/api';
 
@@ -21,14 +21,26 @@ const ManageProducts = () => {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      console.log('📦 Fetching products from:', API_URL);
+      console.log('📦 Fetching ALL products (including inactive) from:', API_URL);
 
-      const response = await fetch(`${API_URL}/api/products?limit=100`);
+      const token = localStorage.getItem('token');
+      
+      // 🔥 FIX: Fetch tất cả products (bao gồm inactive) cho admin
+      const response = await fetch(`${API_URL}/api/products?limit=1000&includeInactive=true`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
       const data = await response.json();
+      console.log('📡 Response:', data);
 
       if (data.success) {
         setProducts(data.products || []);
         console.log('✅ Products loaded:', data.products.length);
+      } else {
+        console.error('❌ Failed to load products:', data.message);
       }
     } catch (error) {
       console.error('❌ Error fetching products:', error);
@@ -50,32 +62,33 @@ const ManageProducts = () => {
       const response = await fetch(`${API_URL}/api/products/${productId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       });
 
-      const data = await response.json();
+      console.log('📡 Delete response status:', response.status);
 
-      if (data.success) {
-        console.log('✅ Product deleted successfully');
+      const data = await response.json();
+      console.log('📦 Delete response:', data);
+
+      if (response.ok && data.success) {
+        console.log('✅ Product deleted successfully from MongoDB');
         alert('Xóa sản phẩm thành công!');
         
-        // 🔥 FIX: Clear localStorage và trigger refresh toàn bộ app
+        // 🔥 Clear cache và reload
         localStorage.removeItem('products');
-        console.log('🧹 Cleared products from localStorage');
-        
-        // Dispatch event để App.jsx re-fetch
         window.dispatchEvent(new Event('productsUpdated'));
-        console.log('📡 Dispatched productsUpdated event');
         
-        // Refresh local list
+        // Refresh list
         fetchProducts();
       } else {
-        alert('Lỗi: ' + data.message);
+        console.error('❌ Delete failed:', data.message);
+        alert('Lỗi: ' + (data.message || 'Xóa thất bại'));
       }
     } catch (error) {
       console.error('❌ Delete error:', error);
-      alert('Không thể xóa sản phẩm');
+      alert('Không thể xóa sản phẩm: ' + error.message);
     }
   };
 
@@ -91,7 +104,7 @@ const ManageProducts = () => {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Đang tải sản phẩm...</p>
+          <p className="mt-4 text-gray-600">Đang tải sản phẩm từ MongoDB...</p>
         </div>
       </div>
     );
@@ -104,16 +117,26 @@ const ManageProducts = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Quản lý sản phẩm</h1>
           <p className="text-gray-600 text-sm mt-1">
-            Tổng: {filteredProducts.length} sản phẩm
+            Tổng: {filteredProducts.length} / {products.length} sản phẩm
           </p>
         </div>
-        <button
-          onClick={() => navigate('/dashboard/products/add')}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus size={20} />
-          Thêm sản phẩm
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={fetchProducts}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+            title="Làm mới dữ liệu"
+          >
+            <RefreshCw size={20} />
+            Làm mới
+          </button>
+          <button
+            onClick={() => navigate('/dashboard/products/add')}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus size={20} />
+            Thêm sản phẩm
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -152,7 +175,7 @@ const ManageProducts = () => {
           <p className="text-gray-500 mb-6">
             {searchTerm || selectedCategory !== 'all' 
               ? 'Thử thay đổi bộ lọc hoặc tìm kiếm'
-              : 'Chưa có sản phẩm nào'}
+              : 'Chưa có sản phẩm nào trong MongoDB'}
           </p>
         </div>
       ) : (
@@ -199,7 +222,7 @@ const ManageProducts = () => {
                             {product.name}
                           </div>
                           <div className="text-xs text-gray-500">
-                            ID: {product.productId || product._id}
+                            ID: {product._id}
                           </div>
                         </div>
                       </div>
@@ -234,12 +257,14 @@ const ManageProducts = () => {
                       <button
                         onClick={() => navigate(`/dashboard/products/edit/${product._id}`)}
                         className="text-blue-600 hover:text-blue-900 mr-4"
+                        title="Chỉnh sửa"
                       >
                         <Edit size={18} />
                       </button>
                       <button
                         onClick={() => handleDelete(product._id)}
                         className="text-red-600 hover:text-red-900"
+                        title="Xóa"
                       >
                         <Trash2 size={18} />
                       </button>
@@ -257,12 +282,12 @@ const ManageProducts = () => {
         <div className="mt-6 p-4 bg-gray-100 rounded-lg text-xs">
           <p className="font-semibold text-gray-700 mb-1">Debug Info:</p>
           <p className="text-gray-600">API URL: {API_URL}</p>
-          <p className="text-gray-600">Total Products: {products.length}</p>
+          <p className="text-gray-600">Total Products in MongoDB: {products.length}</p>
           <p className="text-gray-600">Filtered: {filteredProducts.length}</p>
+          <p className="text-gray-600">Mode: {import.meta.env.MODE}</p>
         </div>
       )}
     </div>
   );
 };
-
 export default ManageProducts;
