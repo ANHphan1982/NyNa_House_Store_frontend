@@ -1,9 +1,9 @@
-// frontend/src/pages/dashboard/ManageProducts.jsx
+// frontend/src/pages/dashboard/manageProducts/ManageProducts.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Edit, Trash2, Plus, Search, Package, RefreshCw } from 'lucide-react';
-import { formatPrice } from '../../data/mockData';
-import API_URL from '../../utils/api';
+import { formatPrice } from '../../../data/mockData'; // 🔥 FIX: 3 cấp lên
+import API_URL from '../../../utils/api'; // 🔥 FIX: 3 cấp lên
 
 const ManageProducts = () => {
   const navigate = useNavigate();
@@ -290,4 +290,5 @@ const ManageProducts = () => {
     </div>
   );
 };
+
 export default ManageProducts;
