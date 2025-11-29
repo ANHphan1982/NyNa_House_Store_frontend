@@ -1,9 +1,10 @@
-// src/pages/dashboard/addProduct/AddProducts.jsx
+// frontend/src/pages/dashboard/addProduct/AddProducts.jsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, X } from 'lucide-react';
 import InputField from './InputField';
 import SelectField from './SelectField';
+import API_URL from '../../../utils/api';
 
 const AddProducts = () => {
   const navigate = useNavigate();
@@ -19,6 +20,7 @@ const AddProducts = () => {
   });
   const [sizes, setSizes] = useState(['']);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const categories = ['Quần áo', 'Giày dép', 'Mỹ phẩm', 'Thực phẩm', 'Tiêu dùng'];
 
@@ -28,6 +30,7 @@ const AddProducts = () => {
       ...prev,
       [name]: value
     }));
+    if (error) setError('');
   };
 
   const handleSizeChange = (index, value) => {
@@ -48,19 +51,20 @@ const AddProducts = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
 
     try {
       // Filter out empty sizes
       const validSizes = sizes.filter(size => size.trim() !== '');
 
-      // 🔥 TẠO PRODUCT DATA ĐỂ GỬI LÊN SERVER
+      // 🔥 TẠO PRODUCT DATA
       const productData = {
         productId: Date.now(), // ID duy nhất
-        name: formData.name,
+        name: formData.name.trim(),
         category: formData.category,
         price: parseFloat(formData.price),
-        image: formData.image,
-        description: formData.description,
+        image: formData.image.trim(),
+        description: formData.description.trim(),
         rating: parseFloat(formData.rating) || 0,
         reviews: parseInt(formData.reviews) || 0,
         stock: parseInt(formData.stock),
@@ -69,16 +73,20 @@ const AddProducts = () => {
       };
 
       console.log('📦 Creating product:', productData);
+      console.log('🌐 API URL:', API_URL);
 
-      // 🔥 GỌI API BACKEND
+      // 🔥 GET TOKEN
       const token = localStorage.getItem('token');
       if (!token) {
-        alert('Vui lòng đăng nhập lại!');
-        navigate('/admin/login');
+        setError('Vui lòng đăng nhập lại!');
+        setTimeout(() => navigate('/admin/login'), 2000);
         return;
       }
 
-      const response = await fetch('http://localhost:5000/api/products', {
+      console.log('🔑 Token exists:', !!token);
+
+      // 🔥 GỌI API BACKEND
+      const response = await fetch(`${API_URL}/api/products`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -87,30 +95,39 @@ const AddProducts = () => {
         body: JSON.stringify(productData)
       });
 
+      console.log('📡 Response status:', response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Thêm sản phẩm thất bại');
+      }
+
       const data = await response.json();
-      console.log('📥 Response:', data);
+      console.log('✅ Response:', data);
 
       if (data.success) {
-        // 🔥 CẬP NHẬT LOCALSTORAGE SAU KHI TẠO THÀNH CÔNG
-        const existingProducts = JSON.parse(localStorage.getItem('products')) || [];
-        const newProduct = {
-          id: productData.productId,
-          ...productData
-        };
-        const updatedProducts = [...existingProducts, newProduct];
-        localStorage.setItem('products', JSON.stringify(updatedProducts));
-
-        // 🔥 DISPATCH EVENT ĐỂ NOTIFY App.jsx
+        console.log('✅ Product created successfully');
+        
+        // 🔥 CLEAR CACHE và TRIGGER REFRESH
+        localStorage.removeItem('products');
         window.dispatchEvent(new Event('productsUpdated'));
-
+        
         alert('Thêm sản phẩm thành công!');
         navigate('/dashboard/manage-products');
       } else {
-        alert('Lỗi: ' + data.message);
+        throw new Error(data.message || 'Thêm sản phẩm thất bại');
       }
     } catch (error) {
       console.error('❌ Error adding product:', error);
-      alert('Không thể kết nối đến server. Vui lòng thử lại!');
+      
+      if (error.message.includes('fetch')) {
+        setError('Không thể kết nối đến server. Vui lòng kiểm tra kết nối.');
+      } else if (error.message.includes('token') || error.message.includes('401')) {
+        setError('Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.');
+        setTimeout(() => navigate('/admin/login'), 2000);
+      } else {
+        setError(error.message || 'Có lỗi xảy ra. Vui lòng thử lại!');
+      }
     } finally {
       setLoading(false);
     }
@@ -129,6 +146,12 @@ const AddProducts = () => {
       <div className="bg-white rounded-lg shadow-md p-6 max-w-3xl mx-auto">
         <h2 className="text-2xl font-bold mb-6 text-gray-900">Thêm Sản Phẩm Mới</h2>
 
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg mb-6">
+            {error}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit}>
           <div className="grid md:grid-cols-2 gap-4">
             <InputField
@@ -138,6 +161,7 @@ const AddProducts = () => {
               onChange={handleChange}
               placeholder="Nhập tên sản phẩm"
               required
+              disabled={loading}
             />
 
             <SelectField
@@ -147,6 +171,7 @@ const AddProducts = () => {
               onChange={handleChange}
               options={categories}
               required
+              disabled={loading}
             />
 
             <InputField
@@ -159,6 +184,7 @@ const AddProducts = () => {
               required
               min="0"
               step="1000"
+              disabled={loading}
             />
 
             <InputField
@@ -170,6 +196,7 @@ const AddProducts = () => {
               placeholder="10"
               required
               min="0"
+              disabled={loading}
             />
 
             <InputField
@@ -182,6 +209,7 @@ const AddProducts = () => {
               min="0"
               max="5"
               step="0.1"
+              disabled={loading}
             />
 
             <InputField
@@ -192,6 +220,7 @@ const AddProducts = () => {
               onChange={handleChange}
               placeholder="100"
               min="0"
+              disabled={loading}
             />
           </div>
 
@@ -203,6 +232,7 @@ const AddProducts = () => {
             onChange={handleChange}
             placeholder="https://images.unsplash.com/photo-xxx"
             required
+            disabled={loading}
           />
 
           <InputField
@@ -214,6 +244,7 @@ const AddProducts = () => {
             placeholder="Nhập mô tả chi tiết về sản phẩm..."
             required
             rows={4}
+            disabled={loading}
           />
 
           {/* Sizes */}
@@ -229,12 +260,14 @@ const AddProducts = () => {
                   onChange={(e) => handleSizeChange(index, e.target.value)}
                   placeholder="VD: S, M, L hoặc 39, 40, 41"
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
+                  disabled={loading}
                 />
                 {sizes.length > 1 && (
                   <button
                     type="button"
                     onClick={() => removeSizeField(index)}
-                    className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+                    className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50"
+                    disabled={loading}
                   >
                     <X size={20} />
                   </button>
@@ -244,7 +277,8 @@ const AddProducts = () => {
             <button
               type="button"
               onClick={addSizeField}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 mt-2"
+              className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 mt-2 disabled:opacity-50"
+              disabled={loading}
             >
               <Plus size={18} />
               Thêm kích thước
@@ -255,7 +289,7 @@ const AddProducts = () => {
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 bg-rose-600 text-white py-3 rounded-lg hover:bg-rose-700 transition-colors font-semibold disabled:bg-gray-400"
+              className="flex-1 bg-rose-600 text-white py-3 rounded-lg hover:bg-rose-700 transition-colors font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               {loading ? 'Đang thêm...' : 'Thêm Sản Phẩm'}
             </button>
@@ -263,11 +297,21 @@ const AddProducts = () => {
               type="button"
               onClick={() => navigate('/dashboard/manage-products')}
               className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
+              disabled={loading}
             >
               Hủy
             </button>
           </div>
         </form>
+
+        {/* Debug Info */}
+        {import.meta.env.DEV && (
+          <div className="mt-6 p-4 bg-gray-100 rounded-lg text-xs">
+            <p className="font-semibold text-gray-700 mb-1">Debug Info:</p>
+            <p className="text-gray-600">API URL: {API_URL}</p>
+            <p className="text-gray-600">Mode: {import.meta.env.MODE}</p>
+          </div>
+        )}
       </div>
     </div>
   );
