@@ -22,7 +22,7 @@ const AddProducts = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const categories = ['Quần áo', 'Giày dép', 'Mỹ phẩm', 'Thực phẩm', 'Tiêu dùng'];
+  const categories = ['Quần áo', 'Giày dép', 'Mỹ phẩm', 'Thực phẩm', 'Tiêu dùng','Gia dụng'];
 
   const handleChange = (e) => {
     const { name, value } = e.target;

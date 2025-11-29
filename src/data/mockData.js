@@ -75,7 +75,7 @@ export const INITIAL_PRODUCTS = [
 ];
 
 // Categories
-export const CATEGORIES = ['Tất cả', 'Quần áo', 'Giày dép', 'Mỹ phẩm', 'Thực phẩm', 'Tiêu dùng'];
+export const CATEGORIES = ['Tất cả', 'Quần áo', 'Giày dép', 'Mỹ phẩm', 'Thực phẩm', 'Tiêu dùng', 'Gia dụng'];
 
 // Utility functions
 export const formatPrice = (price) => {

@@ -24,7 +24,7 @@ const UpdateProduct = () => {
   const [fetchLoading, setFetchLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const categories = ['Quần áo', 'Giày dép', 'Mỹ phẩm', 'Thực phẩm', 'Tiêu dùng'];
+  const categories = ['Quần áo', 'Giày dép', 'Mỹ phẩm', 'Thực phẩm', 'Tiêu dùng','Gia dụng'];
 
   useEffect(() => {
     fetchProduct();
