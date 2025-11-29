@@ -1,4 +1,4 @@
-// frontend/src/pages/dashboard/UpdateProduct/UpdateProduct.jsx
+// frontend/src/pages/dashboard/EditProduct/UpdateProduct.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Plus, X } from 'lucide-react';
@@ -110,7 +110,7 @@ const UpdateProduct = () => {
         sizes: validSizes
       };
 
-      console.log('📝 Updating product:', id);
+      console.log('🔄 Updating product:', id);
       console.log('📦 Update data:', updatedData);
 
       const token = localStorage.getItem('token');
