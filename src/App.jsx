@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import FloatingContact from './components/FloatingContact'; // ← THÊM IMPORT
 import { INITIAL_PRODUCTS } from './data/mockData';
 import API_URL from './utils/api';
 
@@ -242,6 +243,7 @@ function App() {
 
   return (
     <div className="min-h-screen flex flex-col">
+      {/* Navbar - Ẩn ở admin routes */}
       {!isAdminRoute && (
         <Navbar 
           cart={cart} 
@@ -250,6 +252,7 @@ function App() {
         />
       )}
       
+      {/* Main Content */}
       <main className="flex-grow">
         <Outlet context={{ 
           products, 
@@ -265,7 +268,11 @@ function App() {
         }} />
       </main>
       
+      {/* Footer - Ẩn ở admin routes */}
       {!isAdminRoute && <Footer />}
+      
+      {/* 🔥 FLOATING CONTACT - Hiển thị trên tất cả trang user (không hiển thị ở admin) */}
+      {!isAdminRoute && <FloatingContact />}
     </div>
   );
 }
