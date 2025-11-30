@@ -22,7 +22,7 @@ const FloatingContact = () => {
       name: 'Zalo'
     },
     messenger: {
-      link: 'https://web.facebook.com/messages/e2ee/t/9900325459995830?locale=vi_VN',
+      link: 'https://www.facebook.com/nguyen.t.thuy.3950',
       color: 'bg-blue-600',
       hoverColor: 'hover:bg-blue-700',
       icon: (
