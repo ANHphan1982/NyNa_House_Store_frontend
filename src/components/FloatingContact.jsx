@@ -7,7 +7,7 @@ const FloatingContact = () => {
 
   const contacts = {
     zalo: {
-      phone: '0123456789',
+      phone: '0902145018',
       link: 'https://zalo.me/0902145018',
       color: 'bg-blue-500',
       hoverColor: 'hover:bg-blue-600',
@@ -22,7 +22,7 @@ const FloatingContact = () => {
       name: 'Zalo'
     },
     messenger: {
-      link: 'https://m.me/YOUR_FACEBOOK_PAGE',
+      link: 'https://web.facebook.com/messages/e2ee/t/9900325459995830?locale=vi_VN',
       color: 'bg-blue-600',
       hoverColor: 'hover:bg-blue-700',
       icon: (
