@@ -14,7 +14,8 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  Truck
+  Truck,
+  Home
 } from 'lucide-react';
 import RevenueChart from '../../components/RevenueChart';
 import API_URL from '../../utils/api';
@@ -81,10 +82,24 @@ const AdminDashboard = () => {
     }
   };
 
+  // 🔥 LOGOUT VỀ TRANG CHỦ (KHÔNG PHẢI /admin)
   const handleLogout = () => {
+    console.log('🚪 Admin logging out...');
+    
+    // Confirm logout
+    if (!window.confirm('Bạn có chắc muốn đăng xuất?')) {
+      return;
+    }
+    
+    // Clear all auth data
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    navigate('/admin');
+    localStorage.removeItem('cart');
+    
+    console.log('✅ Logged out successfully');
+    
+    // 🔥 REDIRECT VỀ TRANG CHỦ (/)
+    navigate('/');
   };
 
   const formatPrice = (price) => {
@@ -219,17 +234,37 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+      {/* 🔥 HEADER VỚI LOGOUT VÀ BACK TO HOME */}
       <div className="bg-white shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
-          >
-            <LogOut size={18} />
-            Đăng xuất
-          </button>
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+              <p className="text-sm text-gray-600">Hệ thống quản trị NyNA House Store</p>
+            </div>
+            
+            {/* 🔥 ACTION BUTTONS */}
+            <div className="flex items-center gap-3">
+              {/* Back to Home Button */}
+              <button
+                onClick={() => navigate('/')}
+                className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Về trang chủ"
+              >
+                <Home size={20} />
+                <span className="hidden md:inline">Trang chủ</span>
+              </button>
+
+              {/* Logout Button */}
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                <LogOut size={18} />
+                <span>Đăng xuất</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
