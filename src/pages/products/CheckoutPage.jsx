@@ -9,7 +9,6 @@ const CheckoutPage = () => {
   const navigate = useNavigate();
   const { cart = [], clearCart, currentUser } = useOutletContext();
 
-  // 🔥 FIX: Safe access với fallback cho tất cả user fields
   const [formData, setFormData] = useState({
     fullName: currentUser?.name || currentUser?.username || currentUser?.email?.split('@')[0] || '',
     phone: currentUser?.phone || '',
@@ -25,7 +24,6 @@ const CheckoutPage = () => {
   const [error, setError] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('cod');
 
-  // Update form khi currentUser thay đổi
   useEffect(() => {
     if (currentUser) {
       setFormData(prev => ({
@@ -37,12 +35,28 @@ const CheckoutPage = () => {
     }
   }, [currentUser]);
 
-  // Redirect nếu giỏ hàng trống
   useEffect(() => {
     if (cart.length === 0) {
       navigate('/cart');
     }
   }, [cart, navigate]);
+
+  // 🔥 DEBUG: Log cart structure
+  useEffect(() => {
+    console.log('=== CART DEBUG ===');
+    console.log('Cart length:', cart.length);
+    console.log('Cart items:', cart);
+    cart.forEach((item, index) => {
+      console.log(`Item ${index}:`, {
+        _id: item._id,
+        id: item.id,
+        productId: item.productId,
+        name: item.name || item.title,
+        quantity: item.quantity,
+        price: item.price
+      });
+    });
+  }, [cart]);
 
   const calculateTotal = () => {
     return cart.reduce((total, item) => {
@@ -52,7 +66,7 @@ const CheckoutPage = () => {
     }, 0);
   };
 
-  const shippingFee = 30000; // 30,000 VND
+  const shippingFee = 30000;
   const subtotal = calculateTotal();
   const total = subtotal + shippingFee;
 
@@ -89,9 +103,6 @@ const CheckoutPage = () => {
       return false;
     }
 
-    // 🔥 CHỈ VALIDATE address - không cần city, district, ward
-    // Backend sẽ nhận full address string
-
     return true;
   };
 
@@ -99,12 +110,16 @@ const CheckoutPage = () => {
     e.preventDefault();
     setError('');
 
+    console.log('=== CHECKOUT STARTED ===');
+
     if (!validateForm()) {
+      console.log('❌ Form validation failed');
       return;
     }
 
     if (cart.length === 0) {
       setError('Giỏ hàng trống');
+      console.log('❌ Cart is empty');
       return;
     }
 
@@ -119,23 +134,57 @@ const CheckoutPage = () => {
         return;
       }
 
-      console.log('🛒 Creating order...');
-      console.log('API URL:', API_URL);
-      console.log('Cart items:', cart);
+      console.log('🛒 Processing cart items...');
 
-      // 🔥 FIX: Format products theo yêu cầu backend
-      const products = cart.map(item => {
-        const product = {
-          productId: item._id || item.id || item.productId,
-          quantity: parseInt(item.quantity) || 1,
-          price: parseFloat(item.price) || 0
-        };
+      // 🔥 FIX: Comprehensive product ID extraction with fallbacks
+      const products = cart.map((item, index) => {
+        // Try multiple possible ID fields
+        let productId = item._id || item.id || item.productId;
         
-        console.log('Product formatted:', product);
+        // If still no ID, try to extract from other fields
+        if (!productId && item.product) {
+          productId = item.product._id || item.product.id;
+        }
+
+        // Ensure we have a valid ID
+        if (!productId) {
+          console.error(`❌ Item ${index} has no valid ID:`, item);
+          throw new Error(`Sản phẩm "${item.name || item.title}" không có mã hợp lệ`);
+        }
+
+        // Ensure quantity is a valid positive integer
+        let quantity = parseInt(item.quantity);
+        if (isNaN(quantity) || quantity < 1) {
+          console.warn(`⚠️ Item ${index} has invalid quantity, defaulting to 1`);
+          quantity = 1;
+        }
+
+        // Ensure price is a valid number
+        let price = parseFloat(item.price || item.newPrice || 0);
+        if (isNaN(price) || price <= 0) {
+          console.error(`❌ Item ${index} has invalid price:`, item.price);
+          throw new Error(`Sản phẩm "${item.name || item.title}" không có giá hợp lệ`);
+        }
+
+        const product = {
+          productId: productId,
+          quantity: quantity,
+          price: price
+        };
+
+        console.log(`✅ Product ${index} formatted:`, product);
         return product;
       });
 
-      // 🔥 Tạo địa chỉ đầy đủ từ các field
+      console.log('📦 Total products to send:', products.length);
+      console.log('📦 Products array:', JSON.stringify(products, null, 2));
+
+      // Validate products array before sending
+      if (!products || products.length === 0) {
+        throw new Error('Không có sản phẩm hợp lệ trong giỏ hàng');
+      }
+
+      // 🔥 Create full address
       const fullAddress = [
         formData.address.trim(),
         formData.ward.trim(),
@@ -149,7 +198,7 @@ const CheckoutPage = () => {
           fullName: formData.fullName.trim(),
           phone: formData.phone.trim(),
           email: formData.email.trim(),
-          address: fullAddress, // 🔥 GỬI FULL ADDRESS
+          address: fullAddress || formData.address.trim(),
           city: formData.city.trim() || 'N/A',
           district: formData.district.trim() || 'N/A',
           ward: formData.ward.trim() || 'N/A'
@@ -159,7 +208,8 @@ const CheckoutPage = () => {
         totalAmount: total
       };
 
-      console.log('📤 Order data to send:', JSON.stringify(orderData, null, 2));
+      console.log('📤 Sending order data:');
+      console.log(JSON.stringify(orderData, null, 2));
 
       const response = await fetch(`${API_URL}/api/orders`, {
         method: 'POST',
@@ -170,31 +220,27 @@ const CheckoutPage = () => {
         body: JSON.stringify(orderData)
       });
 
-      console.log('Response status:', response.status);
+      console.log('📡 Response status:', response.status);
 
       const data = await response.json();
-      console.log('Response data:', data);
+      console.log('📥 Response data:', data);
 
       if (!response.ok) {
         throw new Error(data.message || 'Không thể tạo đơn hàng');
       }
 
       if (data.success) {
-        console.log('✅ Order created successfully');
+        console.log('✅ Order created successfully:', data.order?._id);
         
-        // Clear cart
         clearCart();
-        
-        // Show success message
         alert('Đặt hàng thành công! Cảm ơn bạn đã mua hàng.');
-        
-        // Redirect to orders page
         navigate('/user/orders');
       } else {
         throw new Error(data.message || 'Đặt hàng thất bại');
       }
     } catch (error) {
       console.error('❌ Checkout error:', error);
+      console.error('Error stack:', error.stack);
       setError(error.message || 'Có lỗi xảy ra. Vui lòng thử lại.');
     } finally {
       setLoading(false);
@@ -211,13 +257,12 @@ const CheckoutPage = () => {
   };
 
   if (cart.length === 0) {
-    return null; // Will redirect via useEffect
+    return null;
   }
 
   return (
     <div className="bg-gray-50 min-h-[calc(100vh-200px)] py-8">
       <div className="container mx-auto px-4">
-        {/* Header */}
         <div className="mb-6">
           <button
             onClick={() => navigate('/cart')}
@@ -229,7 +274,6 @@ const CheckoutPage = () => {
           <h1 className="text-3xl font-bold text-gray-900">Thanh toán</h1>
         </div>
 
-        {/* Error Message */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 animate-shake">
             <div className="flex gap-3">
@@ -243,7 +287,6 @@ const CheckoutPage = () => {
         )}
 
         <div className="grid lg:grid-cols-3 gap-8">
-          {/* Shipping Form */}
           <div className="lg:col-span-2">
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Customer Information */}
@@ -310,7 +353,7 @@ const CheckoutPage = () => {
                 </div>
               </div>
 
-              {/* Shipping Address - 🔥 TẤT CẢ LÀ TEXT INPUT */}
+              {/* Shipping Address */}
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <div className="flex items-center gap-2 mb-4">
                   <MapPin className="text-rose-600" size={20} />
@@ -328,7 +371,7 @@ const CheckoutPage = () => {
                       value={formData.address}
                       onChange={handleChange}
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
-                      placeholder="VD: 123 Đường Lê Lợi"
+                      placeholder="VD: 123 Đường Lê Lợi, Phường 1, Quận 1, TP.HCM"
                       required
                       disabled={loading}
                     />
@@ -381,12 +424,6 @@ const CheckoutPage = () => {
                     </div>
                   </div>
 
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                    <p className="text-sm text-blue-800">
-                      💡 <strong>Mẹo:</strong> Bạn có thể nhập địa chỉ đầy đủ vào ô "Địa chỉ chi tiết" và bỏ qua các ô còn lại nếu muốn.
-                    </p>
-                  </div>
-
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Ghi chú (Tùy chọn)
@@ -397,7 +434,7 @@ const CheckoutPage = () => {
                       onChange={handleChange}
                       rows={3}
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent resize-none"
-                      placeholder="Ghi chú về đơn hàng, ví dụ: thời gian hay chỉ dẫn địa điểm giao hàng chi tiết hơn..."
+                      placeholder="Ghi chú về đơn hàng..."
                       disabled={loading}
                     />
                   </div>
@@ -461,12 +498,12 @@ const CheckoutPage = () => {
                   <div key={index} className="flex gap-3 py-3 border-b">
                     <img
                       src={item.image}
-                      alt={item.name}
+                      alt={item.name || item.title}
                       className="w-16 h-16 object-cover rounded"
                     />
                     <div className="flex-1">
                       <p className="text-sm font-medium text-gray-900 line-clamp-2">
-                        {item.name}
+                        {item.name || item.title}
                       </p>
                       <p className="text-xs text-gray-500">
                         SL: {item.quantity}
@@ -523,11 +560,18 @@ const CheckoutPage = () => {
         {/* Debug Info */}
         {import.meta.env.DEV && (
           <div className="mt-6 p-4 bg-gray-100 rounded-lg text-xs">
-            <p className="font-semibold text-gray-700 mb-1">Debug Info:</p>
+            <p className="font-semibold text-gray-700 mb-2">🔍 Debug Info:</p>
             <p className="text-gray-600">API URL: {API_URL}</p>
             <p className="text-gray-600">Cart items: {cart.length}</p>
-            <p className="text-gray-600">Total products: {cart.reduce((sum, item) => sum + (item.quantity || 1), 0)}</p>
-            <p className="text-gray-600">User: {currentUser?.name || currentUser?.email || 'Not logged in'}</p>
+            <p className="text-gray-600 mb-2">Products in cart:</p>
+            <div className="bg-white p-2 rounded text-xs overflow-auto max-h-40">
+              <pre>{JSON.stringify(cart.map(item => ({
+                id: item._id || item.id || item.productId,
+                name: item.name || item.title,
+                quantity: item.quantity,
+                price: item.price
+              })), null, 2)}</pre>
+            </div>
           </div>
         )}
       </div>
