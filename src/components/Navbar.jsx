@@ -1,3 +1,4 @@
+// frontend/src/components/Navbar.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ShoppingCart, Heart, Menu, X, ChevronDown, LayoutDashboard, Package, ShoppingBag, CreditCard, LogOut } from 'lucide-react';
@@ -36,6 +37,16 @@ const Navbar = ({ cart = [], currentUser, onLogout }) => {
 
   // Tính tổng số lượng sản phẩm trong giỏ
   const cartItemCount = cart.reduce((total, item) => total + (item.quantity || 1), 0);
+
+  // 🔥 SAFE GET USER NAME với fallback
+  const getUserName = () => {
+    return currentUser?.name || currentUser?.username || currentUser?.email?.split('@')[0] || 'User';
+  };
+
+  const getUserInitial = () => {
+    const name = getUserName();
+    return name.charAt(0).toUpperCase();
+  };
 
   return (
     <nav className="bg-white shadow-sm sticky top-0 z-50">
@@ -98,13 +109,13 @@ const Navbar = ({ cart = [], currentUser, onLogout }) => {
                     {currentUser.avatar ? (
                       <img 
                         src={currentUser.avatar} 
-                        alt={currentUser.name}
+                        alt={getUserName()}
                         className="w-full h-full object-cover"
                       />
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
                         <span className="text-white font-bold text-lg">
-                          {currentUser.name?.charAt(0).toUpperCase() || 'U'}
+                          {getUserInitial()}
                         </span>
                       </div>
                     )}
@@ -121,7 +132,7 @@ const Navbar = ({ cart = [], currentUser, onLogout }) => {
                     {/* User Info */}
                     <div className="px-4 py-2 border-b border-gray-100">
                       <p className="text-sm font-semibold text-gray-900 truncate">
-                        {currentUser.name}
+                        {getUserName()}
                       </p>
                       <p className="text-xs text-gray-500 truncate">
                         {currentUser.email || currentUser.phone}
@@ -228,12 +239,12 @@ const Navbar = ({ cart = [], currentUser, onLogout }) => {
                       <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-amber-400">
                         <div className="w-full h-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
                           <span className="text-white font-bold">
-                            {currentUser.name?.charAt(0).toUpperCase() || 'U'}
+                            {getUserInitial()}
                           </span>
                         </div>
                       </div>
                       <div>
-                        <p className="font-semibold text-gray-900">{currentUser.name}</p>
+                        <p className="font-semibold text-gray-900">{getUserName()}</p>
                         <p className="text-xs text-gray-500">{currentUser.email || currentUser.phone}</p>
                       </div>
                     </div>

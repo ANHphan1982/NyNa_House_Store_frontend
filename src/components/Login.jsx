@@ -46,7 +46,7 @@ const Login = () => {
     }
 
     setLoading(true);
-    console.log('🔐 Login attempt:', formData.identifier);
+    console.log('🔍 Login attempt:', formData.identifier);
     console.log('🌐 API URL:', API_URL);
 
     try {
@@ -64,6 +64,11 @@ const Login = () => {
       console.log('📦 Response data:', data);
 
       if (response.ok && data.success) {
+        // 🔥 ENSURE name field exists
+        if (data.user && !data.user.name) {
+          data.user.name = data.user.username || data.user.email?.split('@')[0] || 'User';
+        }
+
         // Lưu vào localStorage
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
@@ -79,8 +84,9 @@ const Login = () => {
           console.warn('⚠️ handleLoginSuccess not found in context!');
         }
 
-        // Hiển thị thông báo
-        alert(`Đăng nhập thành công! Xin chào ${data.user.name}`);
+        // 🔥 SAFE ACCESS với fallback
+        const userName = data.user?.name || data.user?.username || 'bạn';
+        alert(`Đăng nhập thành công! Xin chào ${userName}`);
         
         // Navigate về home
         navigate('/');

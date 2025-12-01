@@ -63,7 +63,7 @@ const Register = () => {
     }
 
     setLoading(true);
-    console.log('📝 Register attempt:', formData.phone);
+    console.log('🔍 Register attempt:', formData.phone);
 
     try {
       const response = await fetch(`${API_URL}/api/auth/register`, {
@@ -82,6 +82,11 @@ const Register = () => {
       console.log('📦 Response:', data);
 
       if (response.ok && data.success) {
+        // 🔥 ENSURE name field exists
+        if (data.user && !data.user.name) {
+          data.user.name = data.user.username || formData.name || data.user.email?.split('@')[0] || 'User';
+        }
+
         // Lưu vào localStorage
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
@@ -93,7 +98,9 @@ const Register = () => {
           handleLoginSuccess(data.user);
         }
 
-        alert(`Đăng ký thành công! Xin chào ${data.user.name}`);
+        // 🔥 SAFE ACCESS với fallback
+        const userName = data.user?.name || formData.name || 'bạn';
+        alert(`Đăng ký thành công! Xin chào ${userName}`);
         navigate('/');
       } else {
         setError(data.message || 'Đăng ký thất bại');
