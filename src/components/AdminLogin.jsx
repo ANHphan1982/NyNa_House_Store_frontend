@@ -33,6 +33,7 @@ const AdminLogin = () => {
 
     try {
       console.log('🔐 Attempting admin login...');
+      console.log('API URL:', API_URL);
 
       const response = await fetch(`${API_URL}/api/auth/admin/login`, {
         method: 'POST',
@@ -42,25 +43,58 @@ const AdminLogin = () => {
         body: JSON.stringify(formData),
       });
 
+      console.log('📡 Response status:', response.status);
+
       const data = await response.json();
-      console.log('📡 Response:', data);
+      console.log('📦 Response data:', data);
 
       if (!response.ok) {
         throw new Error(data.message || 'Đăng nhập thất bại');
       }
 
-      if (data.success && data.requireOTP) {
-        // Move to OTP step
-        console.log('✅ Credentials valid, OTP sent');
-        setMaskedEmail(data.email);
+      // 🔥 CHECK: Nếu có requireOTP = true → Chuyển sang step OTP
+      if (data.success && data.requireOTP === true) {
+        console.log('✅ OTP required, moving to OTP step');
+        console.log('📧 Email:', data.email);
+        
+        // Lưu email và chuyển step
+        setMaskedEmail(data.email || formData.identifier);
         setOtpExpiresIn(data.expiresIn || 300);
         setStep('otp');
-        setSuccessMessage('Mã xác thực đã được gửi đến email của bạn!');
-      } else {
+        setSuccessMessage(data.message || 'Mã xác thực đã được gửi đến email của bạn!');
+      } 
+      // 🔥 CHECK: Nếu có token ngay → Login trực tiếp (không 2FA)
+      else if (data.success && data.token) {
+        console.log('✅ Direct login (no 2FA), token received');
+        
+        // 🔥 KIỂM TRA USER OBJECT
+        if (!data.user) {
+          console.warn('⚠️ No user object in response, creating minimal user');
+          // Tạo user object tối thiểu
+          const minimalUser = {
+            id: data.userId || 'admin',
+            email: formData.identifier,
+            role: 'admin'
+          };
+          localStorage.setItem('user', JSON.stringify(minimalUser));
+        } else {
+          localStorage.setItem('user', JSON.stringify(data.user));
+        }
+        
+        localStorage.setItem('token', data.token);
+        
+        console.log('✅ Redirecting to dashboard');
+        navigate('/dashboard');
+      } 
+      else {
         throw new Error('Phản hồi không hợp lệ từ server');
       }
     } catch (error) {
       console.error('❌ Login error:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack
+      });
       setError(error.message || 'Đăng nhập thất bại. Vui lòng thử lại.');
     } finally {
       setLoading(false);
@@ -74,6 +108,8 @@ const AdminLogin = () => {
 
     try {
       console.log('🔐 Verifying OTP...');
+      console.log('Email:', formData.identifier);
+      console.log('OTP:', otp);
 
       const response = await fetch(`${API_URL}/api/auth/admin/verify-otp`, {
         method: 'POST',
@@ -86,19 +122,31 @@ const AdminLogin = () => {
         }),
       });
 
+      console.log('📡 OTP Response status:', response.status);
+
       const data = await response.json();
-      console.log('📡 OTP Response:', data);
+      console.log('📦 OTP Response data:', data);
 
       if (!response.ok) {
         throw new Error(data.message || 'Xác thực thất bại');
       }
 
       if (data.success && data.token) {
-        console.log('✅ OTP verified, logging in...');
+        console.log('✅ OTP verified successfully');
+        
+        // 🔥 KIỂM TRA USER OBJECT
+        if (!data.user) {
+          console.warn('⚠️ No user object in OTP response');
+          throw new Error('Dữ liệu người dùng không hợp lệ');
+        }
+        
+        console.log('👤 User data:', data.user);
         
         // Save token và user
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
+        
+        console.log('✅ Redirecting to dashboard');
         
         // Redirect to dashboard
         navigate('/dashboard');
@@ -107,6 +155,10 @@ const AdminLogin = () => {
       }
     } catch (error) {
       console.error('❌ OTP verification error:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack
+      });
       setError(error.message || 'Xác thực thất bại. Vui lòng thử lại.');
     } finally {
       setLoading(false);
@@ -133,13 +185,14 @@ const AdminLogin = () => {
       });
 
       const data = await response.json();
+      console.log('📦 Resend response:', data);
 
       if (!response.ok) {
         throw new Error(data.message || 'Không thể gửi lại mã');
       }
 
       if (data.success) {
-        setSuccessMessage('Mã xác thực mới đã được gửi!');
+        setSuccessMessage(data.message || 'Mã xác thực mới đã được gửi!');
       }
     } catch (error) {
       console.error('❌ Resend OTP error:', error);
@@ -182,13 +235,13 @@ const AdminLogin = () => {
         {/* Error & Success Messages */}
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
-            {error}
+            ❌ {error}
           </div>
         )}
         
         {successMessage && (
           <div className="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-lg text-sm">
-            {successMessage}
+            ✅ {successMessage}
           </div>
         )}
 
@@ -284,6 +337,14 @@ const AdminLogin = () => {
               expiresIn={otpExpiresIn}
             />
 
+            {/* Loading indicator during OTP verification */}
+            {loading && (
+              <div className="flex items-center justify-center gap-2 text-blue-600">
+                <Loader2 className="animate-spin" size={20} />
+                <span className="text-sm">Đang xác thực...</span>
+              </div>
+            )}
+
             {/* Back to login */}
             <button
               onClick={() => {
@@ -291,7 +352,8 @@ const AdminLogin = () => {
                 setError('');
                 setSuccessMessage('');
               }}
-              className="w-full py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+              disabled={loading}
+              className="w-full py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors disabled:text-gray-400"
             >
               ← Quay lại đăng nhập
             </button>
@@ -305,6 +367,7 @@ const AdminLogin = () => {
             <p className="text-gray-400">API URL: {API_URL}</p>
             <p className="text-gray-400">Step: {step}</p>
             <p className="text-gray-400">Mode: {import.meta.env.MODE}</p>
+            <p className="text-gray-400">Email: {maskedEmail || 'N/A'}</p>
           </div>
         )}
       </div>
