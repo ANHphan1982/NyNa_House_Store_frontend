@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
-import FloatingContact from './components/FloatingContact'; // ← THÊM IMPORT
+import FloatingContact from './components/FloatingContact';
 import { INITIAL_PRODUCTS } from './data/mockData';
 import API_URL from './utils/api';
 
@@ -14,27 +14,68 @@ function App() {
   const [loading, setLoading] = useState(true);
   const location = useLocation();
 
-  // Load user từ localStorage
+  // 🔥 FIX: Load user từ localStorage với validation đầy đủ
   useEffect(() => {
     console.log('🔄 App mounted - Loading user...');
     
-    const savedUser = localStorage.getItem('user');
-    const token = localStorage.getItem('token');
-    
-    if (savedUser && token) {
-      try {
-        const user = JSON.parse(savedUser);
-        console.log('✅ User loaded:', user);
-        setCurrentUser(user);
-      } catch (error) {
-        console.error('❌ Error parsing user:', error);
+    try {
+      const savedUser = localStorage.getItem('user');
+      const token = localStorage.getItem('token');
+      
+      console.log('📦 Saved user string:', savedUser);
+      console.log('🔑 Token exists:', !!token);
+      
+      // 🔥 CHECK: Validate savedUser string
+      if (!savedUser || savedUser === 'undefined' || savedUser === 'null' || savedUser.trim() === '') {
+        console.warn('⚠️ Invalid user data in localStorage, cleaning up...');
         localStorage.removeItem('user');
         localStorage.removeItem('token');
+        setCurrentUser(null);
+        return;
       }
+      
+      if (savedUser && token) {
+        const user = JSON.parse(savedUser);
+        
+        // 🔥 VALIDATE: User object phải có ít nhất email hoặc id
+        if (!user || (!user.id && !user._id && !user.email)) {
+          console.warn('⚠️ Invalid user object structure, cleaning up...');
+          localStorage.removeItem('user');
+          localStorage.removeItem('token');
+          setCurrentUser(null);
+          return;
+        }
+        
+        // 🔥 ENSURE: User có field "name" để tránh lỗi undefined
+        if (!user.name) {
+          user.name = user.username || user.email?.split('@')[0] || 'Admin';
+        }
+        
+        console.log('✅ User loaded successfully:', {
+          id: user.id || user._id,
+          email: user.email,
+          name: user.name,
+          role: user.role
+        });
+        
+        setCurrentUser(user);
+      } else {
+        console.log('ℹ️ No user or token found');
+        setCurrentUser(null);
+      }
+    } catch (error) {
+      console.error('❌ Error parsing user:', error);
+      console.error('Error message:', error.message);
+      console.error('Stack:', error.stack);
+      
+      // Clean up invalid data
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      setCurrentUser(null);
     }
   }, []);
 
-  // 🔥 FETCH PRODUCTS TỪ API
+  // 🔥 FETCH PRODUCTS Từ API
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -146,8 +187,17 @@ function App() {
     const handleStorageChange = (e) => {
       if (e.key === 'user') {
         if (e.newValue) {
-          const user = JSON.parse(e.newValue);
-          setCurrentUser(user);
+          try {
+            const user = JSON.parse(e.newValue);
+            // 🔥 ENSURE name field
+            if (!user.name) {
+              user.name = user.username || user.email?.split('@')[0] || 'Admin';
+            }
+            setCurrentUser(user);
+          } catch (error) {
+            console.error('❌ Error parsing user from storage event:', error);
+            setCurrentUser(null);
+          }
         } else {
           setCurrentUser(null);
         }
@@ -211,8 +261,22 @@ function App() {
     localStorage.removeItem('cart');
   };
 
+  // 🔥 FIX: handleLoginSuccess với validation
   const handleLoginSuccess = (user) => {
     console.log('🎉 handleLoginSuccess called with user:', user);
+    
+    // 🔥 VALIDATE user object
+    if (!user || (!user.id && !user._id && !user.email)) {
+      console.error('❌ Invalid user object passed to handleLoginSuccess');
+      return;
+    }
+    
+    // 🔥 ENSURE name field
+    if (!user.name) {
+      user.name = user.username || user.email?.split('@')[0] || 'Admin';
+    }
+    
+    console.log('✅ Setting current user:', user);
     setCurrentUser(user);
   };
 
@@ -271,7 +335,7 @@ function App() {
       {/* Footer - Ẩn ở admin routes */}
       {!isAdminRoute && <Footer />}
       
-      {/* 🔥 FLOATING CONTACT - Hiển thị trên tất cả trang user (không hiển thị ở admin) */}
+      {/* 🔥 FLOATING CONTACT - Hiển thị trên tất cả trang user */}
       {!isAdminRoute && <FloatingContact />}
     </div>
   );
