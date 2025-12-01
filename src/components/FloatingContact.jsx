@@ -10,9 +10,9 @@ const FloatingContact = () => {
   const contacts = {
     zalo: {
       label: "Chat Zalo",
-      phone: "0123456789", // ← Thay số Zalo
+      phone: "0914465111", // ← Thay số Zalo
       icon: zaloIcon,
-      link: "https://zalo.me/0123456789",
+      link: "https://zalo.me/0914465111",
       bgColor: "bg-blue-500",
       hoverColor: "hover:bg-blue-600",
       textColor: "text-white",
@@ -20,15 +20,15 @@ const FloatingContact = () => {
     messenger: {
       label: "Messenger",
       icon: "https://upload.wikimedia.org/wikipedia/commons/b/be/Facebook_Messenger_logo_2020.svg",
-      link: "https://m.me/yourfacebookpage",
+      link: "https://www.facebook.com/nguyen.t.thuy.3950",
       bgColor: "bg-blue-600",
       hoverColor: "hover:bg-blue-700",
       textColor: "text-white",
     },
     phone: {
       label: "Gọi điện",
-      phone: "0123456789",
-      link: "tel:0123456789",
+      phone: "0914465111",
+      link: "tel:0914465111",
       bgColor: "bg-green-500",
       hoverColor: "hover:bg-green-600",
       textColor: "text-white",
