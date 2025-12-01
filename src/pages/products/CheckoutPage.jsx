@@ -85,24 +85,12 @@ const CheckoutPage = () => {
     }
 
     if (!formData.address.trim()) {
-      setError('Vui lòng nhập địa chỉ');
+      setError('Vui lòng nhập địa chỉ chi tiết');
       return false;
     }
 
-    if (!formData.city.trim()) {
-      setError('Vui lòng chọn tỉnh/thành phố');
-      return false;
-    }
-
-    if (!formData.district.trim()) {
-      setError('Vui lòng chọn quận/huyện');
-      return false;
-    }
-
-    if (!formData.ward.trim()) {
-      setError('Vui lòng chọn phường/xã');
-      return false;
-    }
+    // 🔥 CHỈ VALIDATE address - không cần city, district, ward
+    // Backend sẽ nhận full address string
 
     return true;
   };
@@ -133,28 +121,45 @@ const CheckoutPage = () => {
 
       console.log('🛒 Creating order...');
       console.log('API URL:', API_URL);
+      console.log('Cart items:', cart);
+
+      // 🔥 FIX: Format products theo yêu cầu backend
+      const products = cart.map(item => {
+        const product = {
+          productId: item._id || item.id || item.productId,
+          quantity: parseInt(item.quantity) || 1,
+          price: parseFloat(item.price) || 0
+        };
+        
+        console.log('Product formatted:', product);
+        return product;
+      });
+
+      // 🔥 Tạo địa chỉ đầy đủ từ các field
+      const fullAddress = [
+        formData.address.trim(),
+        formData.ward.trim(),
+        formData.district.trim(),
+        formData.city.trim()
+      ].filter(part => part !== '').join(', ');
 
       const orderData = {
-        products: cart.map(item => ({
-          productId: item._id || item.id,
-          quantity: item.quantity || 1,
-          price: item.price
-        })),
+        products: products,
         shippingAddress: {
           fullName: formData.fullName.trim(),
           phone: formData.phone.trim(),
           email: formData.email.trim(),
-          address: formData.address.trim(),
-          city: formData.city.trim(),
-          district: formData.district.trim(),
-          ward: formData.ward.trim()
+          address: fullAddress, // 🔥 GỬI FULL ADDRESS
+          city: formData.city.trim() || 'N/A',
+          district: formData.district.trim() || 'N/A',
+          ward: formData.ward.trim() || 'N/A'
         },
         paymentMethod: paymentMethod,
         notes: formData.notes.trim(),
         totalAmount: total
       };
 
-      console.log('Order data:', orderData);
+      console.log('📤 Order data to send:', JSON.stringify(orderData, null, 2));
 
       const response = await fetch(`${API_URL}/api/orders`, {
         method: 'POST',
@@ -305,7 +310,7 @@ const CheckoutPage = () => {
                 </div>
               </div>
 
-              {/* Shipping Address */}
+              {/* Shipping Address - 🔥 TẤT CẢ LÀ TEXT INPUT */}
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <div className="flex items-center gap-2 mb-4">
                   <MapPin className="text-rose-600" size={20} />
@@ -315,7 +320,7 @@ const CheckoutPage = () => {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Địa chỉ cụ thể *
+                      Địa chỉ chi tiết (Số nhà, tên đường) *
                     </label>
                     <input
                       type="text"
@@ -323,7 +328,7 @@ const CheckoutPage = () => {
                       value={formData.address}
                       onChange={handleChange}
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
-                      placeholder="Số nhà, tên đường..."
+                      placeholder="VD: 123 Đường Lê Lợi"
                       required
                       disabled={loading}
                     />
@@ -332,64 +337,54 @@ const CheckoutPage = () => {
                   <div className="grid md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Tỉnh/Thành phố *
+                        Phường/Xã
                       </label>
-                      <select
-                        name="city"
-                        value={formData.city}
-                        onChange={handleChange}
-                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
-                        required
-                        disabled={loading}
-                      >
-                        <option value="">Chọn Tỉnh/TP</option>
-                        <option value="Hồ Chí Minh">TP. Hồ Chí Minh</option>
-                        <option value="Hà Nội">Hà Nội</option>
-                        <option value="Đà Nẵng">Đà Nẵng</option>
-                        <option value="Cần Thơ">Cần Thơ</option>
-                        <option value="Hải Phòng">Hải Phòng</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Quận/Huyện *
-                      </label>
-                      <select
-                        name="district"
-                        value={formData.district}
-                        onChange={handleChange}
-                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
-                        required
-                        disabled={loading}
-                      >
-                        <option value="">Chọn Quận/Huyện</option>
-                        <option value="Quận 1">Quận 1</option>
-                        <option value="Quận 2">Quận 2</option>
-                        <option value="Quận 3">Quận 3</option>
-                        <option value="Quận 4">Quận 4</option>
-                        <option value="Quận 5">Quận 5</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Phường/Xã *
-                      </label>
-                      <select
+                      <input
+                        type="text"
                         name="ward"
                         value={formData.ward}
                         onChange={handleChange}
                         className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
-                        required
+                        placeholder="VD: Phường 1"
                         disabled={loading}
-                      >
-                        <option value="">Chọn Phường/Xã</option>
-                        <option value="Phường 1">Phường 1</option>
-                        <option value="Phường 2">Phường 2</option>
-                        <option value="Phường 3">Phường 3</option>
-                      </select>
+                      />
                     </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Quận/Huyện
+                      </label>
+                      <input
+                        type="text"
+                        name="district"
+                        value={formData.district}
+                        onChange={handleChange}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                        placeholder="VD: Quận 1"
+                        disabled={loading}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Tỉnh/Thành phố
+                      </label>
+                      <input
+                        type="text"
+                        name="city"
+                        value={formData.city}
+                        onChange={handleChange}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                        placeholder="VD: TP. Hồ Chí Minh"
+                        disabled={loading}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <p className="text-sm text-blue-800">
+                      💡 <strong>Mẹo:</strong> Bạn có thể nhập địa chỉ đầy đủ vào ô "Địa chỉ chi tiết" và bỏ qua các ô còn lại nếu muốn.
+                    </p>
                   </div>
 
                   <div>
@@ -531,8 +526,8 @@ const CheckoutPage = () => {
             <p className="font-semibold text-gray-700 mb-1">Debug Info:</p>
             <p className="text-gray-600">API URL: {API_URL}</p>
             <p className="text-gray-600">Cart items: {cart.length}</p>
+            <p className="text-gray-600">Total products: {cart.reduce((sum, item) => sum + (item.quantity || 1), 0)}</p>
             <p className="text-gray-600">User: {currentUser?.name || currentUser?.email || 'Not logged in'}</p>
-            <p className="text-gray-600">Mode: {import.meta.env.MODE}</p>
           </div>
         )}
       </div>
