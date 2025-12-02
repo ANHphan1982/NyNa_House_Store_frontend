@@ -1,7 +1,7 @@
 // frontend/src/pages/products/CheckoutPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
-import { ArrowLeft, ShoppingBag, MapPin, CreditCard, Phone, Mail, User, AlertCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, MapPin, CreditCard, Phone, Mail, User, AlertCircle, Loader2, Clock } from 'lucide-react';
 import { formatPrice } from '../../data/mockData';
 import API_URL from '../../utils/api';
 
@@ -21,20 +21,90 @@ const CheckoutPage = () => {
   });
 
   const [loading, setLoading] = useState(false);
+  const [loadingPrevious, setLoadingPrevious] = useState(false);
   const [error, setError] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('cod');
+  const [previousOrderLoaded, setPreviousOrderLoaded] = useState(false);
 
+  // 🔥 FETCH PREVIOUS ORDER DATA
+  useEffect(() => {
+    const fetchPreviousOrder = async () => {
+      // Only fetch if user is logged in and has temp email (registered by phone)
+      if (!currentUser) return;
+      
+      const isTempEmail = currentUser.email && currentUser.email.includes('@temp.local');
+      
+      // If user has real email, no need to fetch (they can use their own email)
+      if (!isTempEmail && currentUser.email) return;
+
+      try {
+        setLoadingPrevious(true);
+        const token = localStorage.getItem('token');
+        
+        if (!token) return;
+
+        console.log('🔍 Fetching previous orders to pre-fill address...');
+
+        const response = await fetch(`${API_URL}/api/orders/user?limit=1`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (!response.ok) {
+          console.log('⚠️ Could not fetch previous orders');
+          return;
+        }
+
+        const data = await response.json();
+        
+        if (data.success && data.orders && data.orders.length > 0) {
+          const lastOrder = data.orders[0];
+          const lastAddress = lastOrder.shippingAddress;
+          
+          console.log('✅ Found previous order, pre-filling address...');
+          
+          setFormData(prev => ({
+            ...prev,
+            // Only update if current values are empty
+            email: prev.email && !prev.email.includes('@temp.local') ? prev.email : (lastAddress.email || prev.email),
+            address: prev.address || lastAddress.address || '',
+            city: prev.city || lastAddress.city || '',
+            district: prev.district || lastAddress.district || '',
+            ward: prev.ward || lastAddress.ward || ''
+          }));
+          
+          setPreviousOrderLoaded(true);
+          console.log('✅ Address pre-filled from previous order');
+        } else {
+          console.log('ℹ️ No previous orders found');
+        }
+      } catch (error) {
+        console.error('❌ Error fetching previous order:', error);
+      } finally {
+        setLoadingPrevious(false);
+      }
+    };
+
+    fetchPreviousOrder();
+  }, [currentUser]);
+
+  // Update form khi currentUser thay đổi
   useEffect(() => {
     if (currentUser) {
       setFormData(prev => ({
         ...prev,
         fullName: currentUser?.name || currentUser?.username || currentUser?.email?.split('@')[0] || prev.fullName,
         phone: currentUser?.phone || prev.phone,
-        email: currentUser?.email || prev.email
+        // Only update email if it's not temp email
+        email: currentUser?.email && !currentUser?.email.includes('@temp.local') 
+          ? currentUser?.email 
+          : prev.email
       }));
     }
   }, [currentUser]);
 
+  // Redirect nếu giỏ hàng trống
   useEffect(() => {
     if (cart.length === 0) {
       navigate('/cart');
@@ -45,7 +115,6 @@ const CheckoutPage = () => {
   useEffect(() => {
     console.log('=== CART DEBUG ===');
     console.log('Cart length:', cart.length);
-    console.log('Cart items:', cart);
     cart.forEach((item, index) => {
       console.log(`Item ${index}:`, {
         _id: item._id,
@@ -136,30 +205,25 @@ const CheckoutPage = () => {
 
       console.log('🛒 Processing cart items...');
 
-      // 🔥 FIX: Comprehensive product ID extraction with fallbacks
+      // 🔥 Format products with comprehensive ID extraction
       const products = cart.map((item, index) => {
-        // Try multiple possible ID fields
         let productId = item._id || item.id || item.productId;
         
-        // If still no ID, try to extract from other fields
         if (!productId && item.product) {
           productId = item.product._id || item.product.id;
         }
 
-        // Ensure we have a valid ID
         if (!productId) {
           console.error(`❌ Item ${index} has no valid ID:`, item);
           throw new Error(`Sản phẩm "${item.name || item.title}" không có mã hợp lệ`);
         }
 
-        // Ensure quantity is a valid positive integer
         let quantity = parseInt(item.quantity);
         if (isNaN(quantity) || quantity < 1) {
           console.warn(`⚠️ Item ${index} has invalid quantity, defaulting to 1`);
           quantity = 1;
         }
 
-        // Ensure price is a valid number
         let price = parseFloat(item.price || item.newPrice || 0);
         if (isNaN(price) || price <= 0) {
           console.error(`❌ Item ${index} has invalid price:`, item.price);
@@ -168,8 +232,11 @@ const CheckoutPage = () => {
 
         const product = {
           productId: productId,
+          name: item.name || item.title,
           quantity: quantity,
-          price: price
+          price: price,
+          image: item.image || '',
+          size: item.selectedSize || null
         };
 
         console.log(`✅ Product ${index} formatted:`, product);
@@ -177,9 +244,7 @@ const CheckoutPage = () => {
       });
 
       console.log('📦 Total products to send:', products.length);
-      console.log('📦 Products array:', JSON.stringify(products, null, 2));
 
-      // Validate products array before sending
       if (!products || products.length === 0) {
         throw new Error('Không có sản phẩm hợp lệ trong giỏ hàng');
       }
@@ -274,6 +339,29 @@ const CheckoutPage = () => {
           <h1 className="text-3xl font-bold text-gray-900">Thanh toán</h1>
         </div>
 
+        {/* Loading Previous Order */}
+        {loadingPrevious && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center gap-3">
+              <Loader2 className="text-blue-600 animate-spin" size={20} />
+              <p className="text-sm text-blue-800">Đang tải thông tin từ đơn hàng trước...</p>
+            </div>
+          </div>
+        )}
+
+        {/* Previous Order Loaded */}
+        {previousOrderLoaded && !loadingPrevious && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center gap-3">
+              <Clock className="text-green-600" size={20} />
+              <p className="text-sm text-green-800">
+                ✓ Đã tự động điền thông tin từ đơn hàng trước của bạn
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Error Message */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 animate-shake">
             <div className="flex gap-3">
@@ -534,7 +622,7 @@ const CheckoutPage = () => {
               <button
                 type="submit"
                 onClick={handleSubmit}
-                disabled={loading}
+                disabled={loading || loadingPrevious}
                 className="w-full mt-6 bg-rose-600 text-white py-3 rounded-lg hover:bg-rose-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 font-medium"
               >
                 {loading ? (
@@ -563,15 +651,9 @@ const CheckoutPage = () => {
             <p className="font-semibold text-gray-700 mb-2">🔍 Debug Info:</p>
             <p className="text-gray-600">API URL: {API_URL}</p>
             <p className="text-gray-600">Cart items: {cart.length}</p>
-            <p className="text-gray-600 mb-2">Products in cart:</p>
-            <div className="bg-white p-2 rounded text-xs overflow-auto max-h-40">
-              <pre>{JSON.stringify(cart.map(item => ({
-                id: item._id || item.id || item.productId,
-                name: item.name || item.title,
-                quantity: item.quantity,
-                price: item.price
-              })), null, 2)}</pre>
-            </div>
+            <p className="text-gray-600">User email: {currentUser?.email || 'N/A'}</p>
+            <p className="text-gray-600">Is temp email: {currentUser?.email?.includes('@temp.local') ? 'Yes' : 'No'}</p>
+            <p className="text-gray-600">Previous order loaded: {previousOrderLoaded ? 'Yes' : 'No'}</p>
           </div>
         )}
       </div>
