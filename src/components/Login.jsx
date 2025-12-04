@@ -17,9 +17,22 @@ const Login = () => {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
+  // 🔒 SANITIZE INPUT
+  const sanitizeInput = (value) => {
+    return value.trim().replace(/[<>]/g, '');
+  };
+
+  // 🔒 VALIDATE FORM
   const validateForm = () => {
-    if (!formData.identifier.trim()) {
+    const identifier = sanitizeInput(formData.identifier);
+    
+    if (!identifier) {
       setError('Vui lòng nhập email hoặc số điện thoại');
+      return false;
+    }
+
+    if (identifier.length < 3) {
+      setError('Email hoặc số điện thoại quá ngắn');
       return false;
     }
 
@@ -40,22 +53,26 @@ const Login = () => {
     e.preventDefault();
     setError('');
 
-    // Validate form
     if (!validateForm()) {
       return;
     }
 
     setLoading(true);
-    console.log('🔍 Login attempt:', formData.identifier);
-    console.log('🌐 API URL:', API_URL);
+    console.log('🔐 Login attempt');
 
     try {
+      // 🔒 SANITIZE before sending
+      const sanitizedData = {
+        identifier: sanitizeInput(formData.identifier),
+        password: formData.password
+      };
+
       const response = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(sanitizedData)
       });
 
       console.log('📡 Response status:', response.status);
@@ -64,42 +81,32 @@ const Login = () => {
       console.log('📦 Response data:', data);
 
       if (response.ok && data.success) {
-        // 🔥 ENSURE name field exists
+        // Ensure name field
         if (data.user && !data.user.name) {
           data.user.name = data.user.username || data.user.email?.split('@')[0] || 'User';
         }
 
-        // Lưu vào localStorage
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
         
         console.log('✅ Login successful');
-        console.log('👤 User:', data.user);
-        
-        // 🔥 CẬP NHẬT STATE
+
         if (handleLoginSuccess) {
-          console.log('🎯 Calling handleLoginSuccess...');
           handleLoginSuccess(data.user);
-        } else {
-          console.warn('⚠️ handleLoginSuccess not found in context!');
         }
 
-        // 🔥 SAFE ACCESS với fallback
         const userName = data.user?.name || data.user?.username || 'bạn';
         alert(`Đăng nhập thành công! Xin chào ${userName}`);
-        
-        // Navigate về home
         navigate('/');
         
       } else {
-        // Handle error response
         setError(data.message || 'Đăng nhập thất bại. Vui lòng kiểm tra thông tin.');
       }
     } catch (error) {
       console.error('❌ Login error:', error);
       
       if (error.name === 'TypeError' && error.message.includes('fetch')) {
-        setError('Không thể kết nối đến server. Vui lòng kiểm tra kết nối internet hoặc thử lại sau.');
+        setError('Không thể kết nối đến server. Vui lòng kiểm tra kết nối internet.');
       } else {
         setError('Đã xảy ra lỗi. Vui lòng thử lại sau.');
       }
@@ -113,10 +120,7 @@ const Login = () => {
       ...formData,
       [e.target.name]: e.target.value
     });
-    // Clear error when user types
-    if (error) {
-      setError('');
-    }
+    if (error) setError('');
   };
 
   return (
@@ -181,6 +185,7 @@ const Login = () => {
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all"
               placeholder="0902145018 hoặc email@example.com"
               disabled={loading}
+              maxLength={255}
             />
           </div>
           
@@ -200,6 +205,7 @@ const Login = () => {
                 className="w-full px-4 py-2.5 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all"
                 placeholder="••••••••"
                 disabled={loading}
+                maxLength={128}
               />
               <button
                 type="button"
@@ -245,7 +251,6 @@ const Login = () => {
           </button>
         </form>
 
-        {/* Debug Info - Chỉ hiển thị ở development */}
         {import.meta.env.DEV && (
           <div className="mt-4 p-3 bg-gray-100 rounded-lg text-xs">
             <p className="font-semibold text-gray-700 mb-1">Debug Info:</p>

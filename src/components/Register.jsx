@@ -1,7 +1,7 @@
 // frontend/src/components/Register.jsx
 import React, { useState } from 'react';
 import { useNavigate, Link, useOutletContext } from 'react-router-dom';
-import { AlertCircle, Loader2, Eye, EyeOff, CheckCircle, Mail, Phone } from 'lucide-react';
+import { AlertCircle, Loader2, Eye, EyeOff, CheckCircle, XCircle, Phone, Mail } from 'lucide-react';
 import API_URL from '../utils/api';
 
 const Register = () => {
@@ -9,8 +9,8 @@ const Register = () => {
   const context = useOutletContext();
   const handleLoginSuccess = context?.handleLoginSuccess;
 
-  // 🔥 THÊM registerType để chọn phone hoặc email
   const [registerType, setRegisterType] = useState('phone'); // 'phone' or 'email'
+  
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -18,58 +18,114 @@ const Register = () => {
     password: '',
     confirmPassword: ''
   });
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState({
+    score: 0,
+    feedback: []
+  });
 
-  const validatePhone = (phone) => {
-    const phoneRegex = /^(0[3|5|7|8|9])+([0-9]{8})$/;
-    return phoneRegex.test(phone);
+  // 🔒 VALIDATE NAME
+  const validateName = (name) => {
+    if (!name || name.trim().length < 2) {
+      return 'Họ tên phải có ít nhất 2 ký tự';
+    }
+    if (name.trim().length > 100) {
+      return 'Họ tên quá dài (tối đa 100 ký tự)';
+    }
+    return null;
   };
 
+  // 🔒 VALIDATE EMAIL
   const validateEmail = (email) => {
+    if (!email || !email.trim()) {
+      return 'Email là bắt buộc';
+    }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+    if (!emailRegex.test(email)) {
+      return 'Email không hợp lệ';
+    }
+    return null;
   };
 
+  // 🔒 VALIDATE PHONE
+  const validatePhone = (phone) => {
+    if (!phone || !phone.trim()) {
+      return 'Số điện thoại là bắt buộc';
+    }
+    const phoneRegex = /^(0[3|5|7|8|9])+([0-9]{8})$/;
+    if (!phoneRegex.test(phone.trim())) {
+      return 'Số điện thoại không hợp lệ (VD: 0901234567)';
+    }
+    return null;
+  };
+
+  // 🔒 VALIDATE PASSWORD STRENGTH
+  const validatePasswordStrength = (password) => {
+    const checks = {
+      length: password.length >= 8,
+      uppercase: /[A-Z]/.test(password),
+      lowercase: /[a-z]/.test(password),
+      number: /\d/.test(password),
+      special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+    };
+
+    const feedback = [];
+    let score = 0;
+
+    if (checks.length) score++;
+    else feedback.push('Ít nhất 8 ký tự');
+
+    if (checks.uppercase) score++;
+    else feedback.push('Ít nhất 1 chữ hoa');
+
+    if (checks.lowercase) score++;
+    else feedback.push('Ít nhất 1 chữ thường');
+
+    if (checks.number) score++;
+    else feedback.push('Ít nhất 1 số');
+
+    if (checks.special) score++;
+    else feedback.push('Ít nhất 1 ký tự đặc biệt (!@#$...)');
+
+    return { score, feedback, checks };
+  };
+
+  // 🔒 VALIDATE FORM
   const validateForm = () => {
-    if (!formData.name.trim()) {
-      setError('Vui lòng nhập họ tên');
+    // Name
+    const nameError = validateName(formData.name);
+    if (nameError) {
+      setError(nameError);
       return false;
     }
 
-    if (formData.name.trim().length < 2) {
-      setError('Họ tên phải có ít nhất 2 ký tự');
-      return false;
-    }
-
-    // 🔥 VALIDATE theo registerType
+    // Phone or Email
     if (registerType === 'phone') {
-      if (!formData.phone) {
-        setError('Vui lòng nhập số điện thoại');
-        return false;
-      }
-      if (!validatePhone(formData.phone)) {
-        setError('Số điện thoại không hợp lệ. Vui lòng nhập đúng định dạng (VD: 0901234567)');
+      const phoneError = validatePhone(formData.phone);
+      if (phoneError) {
+        setError(phoneError);
         return false;
       }
     } else {
-      if (!formData.email) {
-        setError('Vui lòng nhập email');
-        return false;
-      }
-      if (!validateEmail(formData.email)) {
-        setError('Email không hợp lệ. Vui lòng nhập đúng định dạng (VD: email@example.com)');
+      const emailError = validateEmail(formData.email);
+      if (emailError) {
+        setError(emailError);
         return false;
       }
     }
 
-    if (formData.password.length < 6) {
-      setError('Mật khẩu phải có ít nhất 6 ký tự');
+    // Password
+    const strength = validatePasswordStrength(formData.password);
+    if (strength.score < 5) {
+      setError('Mật khẩu chưa đủ mạnh: ' + strength.feedback.join(', '));
       return false;
     }
 
+    // Confirm Password
     if (formData.password !== formData.confirmPassword) {
       setError('Mật khẩu xác nhận không khớp');
       return false;
@@ -87,22 +143,21 @@ const Register = () => {
     }
 
     setLoading(true);
-    console.log('🔐 Register attempt:', registerType === 'phone' ? formData.phone : formData.email);
+    console.log('📝 Register attempt:', registerType === 'phone' ? formData.phone : formData.email);
 
     try {
-      // 🔥 GỬI DATA THEO registerType
       const requestData = {
-        name: formData.name,
+        name: formData.name.trim(),
         password: formData.password
       };
 
       if (registerType === 'phone') {
-        requestData.phone = formData.phone;
+        requestData.phone = formData.phone.trim();
       } else {
-        requestData.email = formData.email;
+        requestData.email = formData.email.trim();
       }
 
-      console.log('📤 Sending data:', requestData);
+      console.log('📤 Sending registration data:', { ...requestData, password: '[HIDDEN]' });
 
       const response = await fetch(`${API_URL}/api/auth/register`, {
         method: 'POST',
@@ -112,79 +167,88 @@ const Register = () => {
         body: JSON.stringify(requestData)
       });
 
+      console.log('📡 Response status:', response.status);
+
       const data = await response.json();
-      console.log('📦 Response:', data);
+      console.log('📦 Response data:', data);
 
       if (response.ok && data.success) {
-        // 🔥 ENSURE name field exists
+        // Ensure name field
         if (data.user && !data.user.name) {
-          data.user.name = data.user.username || formData.name || data.user.email?.split('@')[0] || 'User';
+          data.user.name = data.user.username || formData.name;
         }
 
-        // Lưu vào localStorage
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
         
         console.log('✅ Registration successful');
-        
-        // Cập nhật state
+
         if (handleLoginSuccess) {
           handleLoginSuccess(data.user);
         }
 
-        // 🔥 SAFE ACCESS với fallback
-        const userName = data.user?.name || formData.name || 'bạn';
+        const userName = data.user?.name || data.user?.username || 'bạn';
         alert(`Đăng ký thành công! Xin chào ${userName}`);
         navigate('/');
       } else {
-        setError(data.message || 'Đăng ký thất bại');
+        setError(data.message || 'Đăng ký thất bại. Vui lòng thử lại.');
       }
     } catch (error) {
-      console.error('❌ Register error:', error);
-      setError('Không thể kết nối đến server. Vui lòng thử lại sau.');
+      console.error('❌ Registration error:', error);
+      
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        setError('Không thể kết nối đến server. Vui lòng kiểm tra kết nối internet.');
+      } else {
+        setError('Đã xảy ra lỗi. Vui lòng thử lại sau.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
-    if (error) {
-      setError('');
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+
+    // Real-time password strength check
+    if (name === 'password') {
+      const strength = validatePasswordStrength(value);
+      setPasswordStrength(strength);
+    }
+
+    if (error) setError('');
+  };
+
+  const handleRegisterTypeChange = (type) => {
+    setRegisterType(type);
+    setError('');
+    // Clear the opposite field
+    if (type === 'phone') {
+      setFormData(prev => ({ ...prev, email: '' }));
+    } else {
+      setFormData(prev => ({ ...prev, phone: '' }));
     }
   };
 
-  // 🔥 RESET FIELDS khi đổi registerType
-  const handleRegisterTypeChange = (type) => {
-    setRegisterType(type);
-    setFormData({
-      ...formData,
-      phone: '',
-      email: ''
-    });
-    setError('');
+  // Password strength color
+  const getStrengthColor = (score) => {
+    if (score <= 1) return 'bg-red-500';
+    if (score <= 2) return 'bg-orange-500';
+    if (score <= 3) return 'bg-yellow-500';
+    if (score <= 4) return 'bg-blue-500';
+    return 'bg-green-500';
   };
 
-  const getPasswordStrength = () => {
-    const password = formData.password;
-    if (!password) return { strength: '', color: '', width: '0%' };
-    
-    let strength = 0;
-    if (password.length >= 6) strength++;
-    if (password.length >= 8) strength++;
-    if (/[A-Z]/.test(password)) strength++;
-    if (/[0-9]/.test(password)) strength++;
-    if (/[^A-Za-z0-9]/.test(password)) strength++;
-
-    if (strength <= 2) return { strength: 'Yếu', color: 'bg-red-500', width: '33%' };
-    if (strength <= 3) return { strength: 'Trung bình', color: 'bg-yellow-500', width: '66%' };
-    return { strength: 'Mạnh', color: 'bg-green-500', width: '100%' };
+  const getStrengthText = (score) => {
+    if (score <= 1) return 'Rất yếu';
+    if (score <= 2) return 'Yếu';
+    if (score <= 3) return 'Trung bình';
+    if (score <= 4) return 'Mạnh';
+    return 'Rất mạnh';
   };
-
-  const passwordStrength = getPasswordStrength();
 
   return (
     <div className="min-h-[calc(100vh-200px)] flex items-center justify-center bg-gray-50 py-12 px-4">
@@ -196,39 +260,12 @@ const Register = () => {
           <p className="text-sm text-gray-600">
             Đã có tài khoản?{' '}
             <Link to="/login" className="font-medium text-rose-600 hover:text-rose-500">
-              Đăng nhập ngay
+              Đăng nhập
             </Link>
           </p>
         </div>
-
-        {/* 🔥 TOGGLE REGISTER TYPE */}
-        <div className="bg-gray-100 p-1 rounded-lg flex gap-1">
-          <button
-            type="button"
-            onClick={() => handleRegisterTypeChange('phone')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-md font-medium transition-all ${
-              registerType === 'phone'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Phone size={18} />
-            Số điện thoại
-          </button>
-          <button
-            type="button"
-            onClick={() => handleRegisterTypeChange('email')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-md font-medium transition-all ${
-              registerType === 'email'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Mail size={18} />
-            Email
-          </button>
-        </div>
-
+        
+        {/* Error Message */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 animate-shake">
             <div className="flex gap-3">
@@ -242,6 +279,7 @@ const Register = () => {
         )}
 
         <form className="space-y-4" onSubmit={handleSubmit}>
+          {/* Name */}
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
               Họ và tên *
@@ -251,16 +289,50 @@ const Register = () => {
               name="name"
               type="text"
               required
-              autoComplete="name"
               value={formData.name}
               onChange={handleChange}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all"
               placeholder="Nguyễn Văn A"
               disabled={loading}
             />
           </div>
 
-          {/* 🔥 CONDITIONAL FIELD - PHONE HOẶC EMAIL */}
+          {/* Register Type Toggle */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Đăng ký bằng *
+            </label>
+            <div className="bg-gray-100 p-1 rounded-lg flex gap-1">
+              <button
+                type="button"
+                onClick={() => handleRegisterTypeChange('phone')}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-md transition-all ${
+                  registerType === 'phone'
+                    ? 'bg-white shadow-sm text-gray-900'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+                disabled={loading}
+              >
+                <Phone size={18} />
+                <span>Số điện thoại</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleRegisterTypeChange('email')}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-md transition-all ${
+                  registerType === 'email'
+                    ? 'bg-white shadow-sm text-gray-900'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+                disabled={loading}
+              >
+                <Mail size={18} />
+                <span>Email</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Phone or Email */}
           {registerType === 'phone' ? (
             <div>
               <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
@@ -271,17 +343,22 @@ const Register = () => {
                 name="phone"
                 type="tel"
                 required
-                autoComplete="tel"
                 value={formData.phone}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all"
                 placeholder="0901234567"
                 disabled={loading}
               />
               {formData.phone && !validatePhone(formData.phone) && (
-                <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
-                  <AlertCircle size={14} />
+                <p className="text-red-600 text-xs mt-1 flex items-center gap-1">
+                  <XCircle size={14} />
                   Số điện thoại không hợp lệ
+                </p>
+              )}
+              {formData.phone && validatePhone(formData.phone) === null && (
+                <p className="text-green-600 text-xs mt-1 flex items-center gap-1">
+                  <CheckCircle size={14} />
+                  Số điện thoại hợp lệ
                 </p>
               )}
             </div>
@@ -295,22 +372,28 @@ const Register = () => {
                 name="email"
                 type="email"
                 required
-                autoComplete="email"
                 value={formData.email}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all"
                 placeholder="email@example.com"
                 disabled={loading}
               />
               {formData.email && !validateEmail(formData.email) && (
-                <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
-                  <AlertCircle size={14} />
+                <p className="text-red-600 text-xs mt-1 flex items-center gap-1">
+                  <XCircle size={14} />
                   Email không hợp lệ
+                </p>
+              )}
+              {formData.email && validateEmail(formData.email) === null && (
+                <p className="text-green-600 text-xs mt-1 flex items-center gap-1">
+                  <CheckCircle size={14} />
+                  Email hợp lệ
                 </p>
               )}
             </div>
           )}
-
+          
+          {/* Password */}
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
               Mật khẩu *
@@ -321,10 +404,9 @@ const Register = () => {
                 name="password"
                 type={showPassword ? "text" : "password"}
                 required
-                autoComplete="new-password"
                 value={formData.password}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                className="w-full px-4 py-2.5 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all"
                 placeholder="••••••••"
                 disabled={loading}
               />
@@ -337,28 +419,44 @@ const Register = () => {
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
             </div>
+
+            {/* Password Strength Indicator */}
             {formData.password && (
               <div className="mt-2">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs text-gray-600">Độ mạnh mật khẩu:</span>
-                  <span className={`text-xs font-medium ${
-                    passwordStrength.strength === 'Mạnh' ? 'text-green-600' :
-                    passwordStrength.strength === 'Trung bình' ? 'text-yellow-600' :
-                    'text-red-600'
-                  }`}>
-                    {passwordStrength.strength}
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full transition-all ${getStrengthColor(passwordStrength.score)}`}
+                      style={{ width: `${(passwordStrength.score / 5) * 100}%` }}
+                    />
+                  </div>
+                  <span className="text-xs font-medium text-gray-600">
+                    {getStrengthText(passwordStrength.score)}
                   </span>
                 </div>
-                <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                  <div 
-                    className={`h-full ${passwordStrength.color} transition-all duration-300`}
-                    style={{ width: passwordStrength.width }}
-                  ></div>
-                </div>
+                
+                {passwordStrength.feedback.length > 0 && (
+                  <div className="space-y-1">
+                    {passwordStrength.feedback.map((item, index) => (
+                      <p key={index} className="text-xs text-gray-600 flex items-center gap-1">
+                        <XCircle size={12} className="text-red-500" />
+                        {item}
+                      </p>
+                    ))}
+                  </div>
+                )}
+
+                {passwordStrength.score === 5 && (
+                  <p className="text-xs text-green-600 flex items-center gap-1">
+                    <CheckCircle size={12} />
+                    Mật khẩu rất mạnh!
+                  </p>
+                )}
               </div>
             )}
           </div>
 
+          {/* Confirm Password */}
           <div>
             <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
               Xác nhận mật khẩu *
@@ -369,10 +467,9 @@ const Register = () => {
                 name="confirmPassword"
                 type={showConfirmPassword ? "text" : "password"}
                 required
-                autoComplete="new-password"
                 value={formData.confirmPassword}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                className="w-full px-4 py-2.5 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all"
                 placeholder="••••••••"
                 disabled={loading}
               />
@@ -386,13 +483,13 @@ const Register = () => {
               </button>
             </div>
             {formData.confirmPassword && formData.password !== formData.confirmPassword && (
-              <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
-                <AlertCircle size={14} />
+              <p className="text-red-600 text-xs mt-1 flex items-center gap-1">
+                <XCircle size={14} />
                 Mật khẩu không khớp
               </p>
             )}
             {formData.confirmPassword && formData.password === formData.confirmPassword && (
-              <p className="mt-1 text-xs text-green-600 flex items-center gap-1">
+              <p className="text-green-600 text-xs mt-1 flex items-center gap-1">
                 <CheckCircle size={14} />
                 Mật khẩu khớp
               </p>
@@ -401,7 +498,7 @@ const Register = () => {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || passwordStrength.score < 5}
             className="w-full bg-gray-900 text-white py-3 rounded-lg hover:bg-gray-800 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 font-medium"
           >
             {loading ? (
@@ -415,11 +512,39 @@ const Register = () => {
           </button>
         </form>
 
+        {/* Password Requirements */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <p className="text-sm font-medium text-blue-900 mb-2">📋 Yêu cầu mật khẩu:</p>
+          <ul className="text-xs text-blue-700 space-y-1">
+            <li className="flex items-center gap-2">
+              {passwordStrength.checks?.length ? <CheckCircle size={14} className="text-green-600" /> : <XCircle size={14} />}
+              Ít nhất 8 ký tự
+            </li>
+            <li className="flex items-center gap-2">
+              {passwordStrength.checks?.uppercase ? <CheckCircle size={14} className="text-green-600" /> : <XCircle size={14} />}
+              Ít nhất 1 chữ hoa (A-Z)
+            </li>
+            <li className="flex items-center gap-2">
+              {passwordStrength.checks?.lowercase ? <CheckCircle size={14} className="text-green-600" /> : <XCircle size={14} />}
+              Ít nhất 1 chữ thường (a-z)
+            </li>
+            <li className="flex items-center gap-2">
+              {passwordStrength.checks?.number ? <CheckCircle size={14} className="text-green-600" /> : <XCircle size={14} />}
+              Ít nhất 1 số (0-9)
+            </li>
+            <li className="flex items-center gap-2">
+              {passwordStrength.checks?.special ? <CheckCircle size={14} className="text-green-600" /> : <XCircle size={14} />}
+              Ít nhất 1 ký tự đặc biệt (!@#$%^&*)
+            </li>
+          </ul>
+        </div>
+
         {import.meta.env.DEV && (
           <div className="mt-4 p-3 bg-gray-100 rounded-lg text-xs">
             <p className="font-semibold text-gray-700 mb-1">Debug Info:</p>
             <p className="text-gray-600">API URL: {API_URL}</p>
             <p className="text-gray-600">Register Type: {registerType}</p>
+            <p className="text-gray-600">Password Strength: {passwordStrength.score}/5</p>
           </div>
         )}
       </div>

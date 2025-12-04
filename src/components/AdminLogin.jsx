@@ -8,13 +8,11 @@ import OTPInput from './OTPInput';
 const AdminLogin = () => {
   const navigate = useNavigate();
   
-  // Step 1: Login form
   const [formData, setFormData] = useState({
     identifier: '',
     password: ''
   });
   
-  // Step 2: OTP verification
   const [step, setStep] = useState('login'); // 'login' | 'otp'
   const [maskedEmail, setMaskedEmail] = useState('');
   const [otpExpiresIn, setOtpExpiresIn] = useState(300);
@@ -24,6 +22,38 @@ const AdminLogin = () => {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
+  // 🔒 SANITIZE INPUT
+  const sanitizeInput = (value) => {
+    return value.trim().replace(/[<>]/g, '');
+  };
+
+  // 🔒 VALIDATE LOGIN FORM
+  const validateLoginForm = () => {
+    const identifier = sanitizeInput(formData.identifier);
+    
+    if (!identifier) {
+      setError('Vui lòng nhập email hoặc số điện thoại');
+      return false;
+    }
+
+    if (identifier.length < 3) {
+      setError('Email hoặc số điện thoại quá ngắn');
+      return false;
+    }
+
+    if (!formData.password) {
+      setError('Vui lòng nhập mật khẩu');
+      return false;
+    }
+
+    if (formData.password.length < 6) {
+      setError('Mật khẩu phải có ít nhất 6 ký tự');
+      return false;
+    }
+
+    return true;
+  };
+
   // Handle login (Step 1)
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -31,16 +61,26 @@ const AdminLogin = () => {
     setError('');
     setSuccessMessage('');
 
+    if (!validateLoginForm()) {
+      setLoading(false);
+      return;
+    }
+
     try {
-      console.log('🔐 Attempting admin login...');
-      console.log('API URL:', API_URL);
+      console.log('🔐 Admin login attempt...');
+
+      // 🔒 SANITIZE before sending
+      const sanitizedData = {
+        identifier: sanitizeInput(formData.identifier),
+        password: formData.password
+      };
 
       const response = await fetch(`${API_URL}/api/auth/admin/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(sanitizedData),
       });
 
       console.log('📡 Response status:', response.status);
@@ -52,25 +92,18 @@ const AdminLogin = () => {
         throw new Error(data.message || 'Đăng nhập thất bại');
       }
 
-      // 🔥 CHECK: Nếu có requireOTP = true → Chuyển sang step OTP
       if (data.success && data.requireOTP === true) {
         console.log('✅ OTP required, moving to OTP step');
-        console.log('📧 Email:', data.email);
         
-        // Lưu email và chuyển step
         setMaskedEmail(data.email || formData.identifier);
         setOtpExpiresIn(data.expiresIn || 300);
         setStep('otp');
         setSuccessMessage(data.message || 'Mã xác thực đã được gửi đến email của bạn!');
       } 
-      // 🔥 CHECK: Nếu có token ngay → Login trực tiếp (không 2FA)
       else if (data.success && data.token) {
-        console.log('✅ Direct login (no 2FA), token received');
+        console.log('✅ Direct login (no 2FA)');
         
-        // 🔥 KIỂM TRA USER OBJECT
         if (!data.user) {
-          console.warn('⚠️ No user object in response, creating minimal user');
-          // Tạo user object tối thiểu
           const minimalUser = {
             id: data.userId || 'admin',
             email: formData.identifier,
@@ -82,8 +115,6 @@ const AdminLogin = () => {
         }
         
         localStorage.setItem('token', data.token);
-        
-        console.log('✅ Redirecting to dashboard');
         navigate('/dashboard');
       } 
       else {
@@ -91,10 +122,6 @@ const AdminLogin = () => {
       }
     } catch (error) {
       console.error('❌ Login error:', error);
-      console.error('Error details:', {
-        message: error.message,
-        stack: error.stack
-      });
       setError(error.message || 'Đăng nhập thất bại. Vui lòng thử lại.');
     } finally {
       setLoading(false);
@@ -106,10 +133,15 @@ const AdminLogin = () => {
     setLoading(true);
     setError('');
 
+    // 🔒 VALIDATE OTP
+    if (!otp || otp.length !== 6 || !/^\d+$/.test(otp)) {
+      setError('Mã OTP không hợp lệ');
+      setLoading(false);
+      return;
+    }
+
     try {
       console.log('🔐 Verifying OTP...');
-      console.log('Email:', formData.identifier);
-      console.log('OTP:', otp);
 
       const response = await fetch(`${API_URL}/api/auth/admin/verify-otp`, {
         method: 'POST',
@@ -117,7 +149,7 @@ const AdminLogin = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: formData.identifier,
+          email: sanitizeInput(formData.identifier),
           otp: otp.trim(),
         }),
       });
@@ -134,31 +166,19 @@ const AdminLogin = () => {
       if (data.success && data.token) {
         console.log('✅ OTP verified successfully');
         
-        // 🔥 KIỂM TRA USER OBJECT
         if (!data.user) {
-          console.warn('⚠️ No user object in OTP response');
           throw new Error('Dữ liệu người dùng không hợp lệ');
         }
         
-        console.log('👤 User data:', data.user);
-        
-        // Save token và user
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
         
-        console.log('✅ Redirecting to dashboard');
-        
-        // Redirect to dashboard
         navigate('/dashboard');
       } else {
         throw new Error('Token không hợp lệ');
       }
     } catch (error) {
       console.error('❌ OTP verification error:', error);
-      console.error('Error details:', {
-        message: error.message,
-        stack: error.stack
-      });
       setError(error.message || 'Xác thực thất bại. Vui lòng thử lại.');
     } finally {
       setLoading(false);
@@ -180,7 +200,7 @@ const AdminLogin = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: formData.identifier,
+          email: sanitizeInput(formData.identifier),
         }),
       });
 
@@ -266,6 +286,7 @@ const AdminLogin = () => {
                     className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                     placeholder="admin@example.com"
                     disabled={loading}
+                    maxLength={255}
                   />
                 </div>
               </div>
@@ -287,6 +308,7 @@ const AdminLogin = () => {
                     className="pl-10 pr-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                     placeholder="••••••••"
                     disabled={loading}
+                    maxLength={128}
                   />
                   <button
                     type="button"
@@ -337,7 +359,6 @@ const AdminLogin = () => {
               expiresIn={otpExpiresIn}
             />
 
-            {/* Loading indicator during OTP verification */}
             {loading && (
               <div className="flex items-center justify-center gap-2 text-blue-600">
                 <Loader2 className="animate-spin" size={20} />
@@ -345,7 +366,6 @@ const AdminLogin = () => {
               </div>
             )}
 
-            {/* Back to login */}
             <button
               onClick={() => {
                 setStep('login');
