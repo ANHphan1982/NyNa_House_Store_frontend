@@ -21,7 +21,7 @@ import OrderDetail from "../pages/dashboard/OrderDetail";
 import UserDashboard from "../pages/user/UserDashboard";
 import UserOrders from "../pages/user/UserOrders";
 
-// 🔥 NEW: Password Reset Pages
+// Password Reset Pages
 import ForgotPassword from "../components/ForgotPassword";
 import ResetPassword from "../components/ResetPassword";
 
@@ -47,7 +47,7 @@ const router = createBrowserRouter(
                     path: "/register",
                     element: <Register />
                 },
-                // 🔥 NEW: Password Reset Routes
+                // Password Reset Routes
                 {
                     path: "/forgot-password",
                     element: <ForgotPassword />
@@ -60,10 +60,11 @@ const router = createBrowserRouter(
                     path: "/cart",
                     element: <CartPage />
                 },
-                //{
-                   // path: "/checkout",
-                    //element: <PrivateRoute><CheckoutPage /></PrivateRoute>
-                //},
+                // 🔥 FIX: Uncomment and remove PrivateRoute for guest checkout
+                {
+                    path: "/checkout",
+                    element: <CheckoutPage />  // ✅ No PrivateRoute wrapper
+                },
                 {
                     path: "/products/:id",
                     element: <SingleProduct />
@@ -72,7 +73,7 @@ const router = createBrowserRouter(
                     path: "/product/:id",
                     element: <SingleProduct />
                 },
-                // User Routes - Cần đăng nhập
+                // User Routes - Requires login
                 {
                     path: "/user/dashboard",
                     element: <PrivateRoute><UserDashboard /></PrivateRoute>
@@ -83,7 +84,7 @@ const router = createBrowserRouter(
                 }
             ]
         },
-        // Admin routes - Standalone (không nằm trong App layout)
+        // Admin routes - Standalone (outside App layout)
         {
             path: "/admin",
             element: <AdminLogin />
@@ -96,12 +97,10 @@ const router = createBrowserRouter(
             path: "/dashboard",
             element: <AdminRoute><AdminDashboard /></AdminRoute>
         },
-        // 🔥 FIX: Đổi thành /dashboard/products/add
         {
             path: "/dashboard/products/add",
             element: <AdminRoute><AddProducts /></AdminRoute>
         },
-        // 🔥 KEEP: Old route for backward compatibility
         {
             path: "/dashboard/add-product",
             element: <AdminRoute><AddProducts /></AdminRoute>
@@ -110,12 +109,10 @@ const router = createBrowserRouter(
             path: "/dashboard/manage-products",
             element: <AdminRoute><ManageProducts /></AdminRoute>
         },
-        // 🔥 FIX: Đổi thành /dashboard/products/edit/:id
         {
             path: "/dashboard/products/edit/:id",
             element: <AdminRoute><UpdateProduct /></AdminRoute>
         },
-        // 🔥 KEEP: Old route for backward compatibility
         {
             path: "/dashboard/edit-product/:id",
             element: <AdminRoute><UpdateProduct /></AdminRoute>
