@@ -6,6 +6,7 @@ import Footer from './components/Footer';
 import FloatingContact from './components/FloatingContact';
 import { INITIAL_PRODUCTS } from './data/mockData';
 import API_URL from './utils/api';
+import ForgotPassword from './components/ForgotPassword';
 
 function App() {
   const [products, setProducts] = useState([]);

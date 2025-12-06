@@ -21,6 +21,10 @@ import OrderDetail from "../pages/dashboard/OrderDetail";
 import UserDashboard from "../pages/user/UserDashboard";
 import UserOrders from "../pages/user/UserOrders";
 
+// 🔥 NEW: Password Reset Pages
+import ForgotPassword from "../components/ForgotPassword";
+import ResetPassword from "../components/ResetPassword";
+
 const router = createBrowserRouter(
     [
         {
@@ -42,6 +46,15 @@ const router = createBrowserRouter(
                 {
                     path: "/register",
                     element: <Register />
+                },
+                // 🔥 NEW: Password Reset Routes
+                {
+                    path: "/forgot-password",
+                    element: <ForgotPassword />
+                },
+                {
+                    path: "/reset-password",
+                    element: <ResetPassword />
                 },
                 {
                     path: "/cart",

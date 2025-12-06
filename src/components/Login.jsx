@@ -72,6 +72,7 @@ const Login = () => {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // 🔥 NEW: Include cookies
         body: JSON.stringify(sanitizedData)
       });
 
@@ -86,10 +87,14 @@ const Login = () => {
           data.user.name = data.user.username || data.user.email?.split('@')[0] || 'User';
         }
 
-        localStorage.setItem('token', data.token);
+        // 🔥 UPDATED: Store token (backward compatible with cookie)
+        if (data.token) {
+          localStorage.setItem('token', data.token);
+        }
         localStorage.setItem('user', JSON.stringify(data.user));
         
         console.log('✅ Login successful');
+        console.log('🍪 Cookies:', document.cookie ? 'Set' : 'Not set');
 
         if (handleLoginSuccess) {
           handleLoginSuccess(data.user);
@@ -227,12 +232,14 @@ const Login = () => {
               />
               <span className="ml-2 text-gray-700">Ghi nhớ đăng nhập</span>
             </label>
-            <a 
-              href="#" 
+            
+            {/* 🔥 FIXED: Link to forgot password page */}
+            <Link 
+              to="/forgot-password"
               className="text-rose-600 hover:text-rose-700 font-medium transition-colors"
             >
               Quên mật khẩu?
-            </a>
+            </Link>
           </div>
 
           <button
@@ -256,6 +263,7 @@ const Login = () => {
             <p className="font-semibold text-gray-700 mb-1">Debug Info:</p>
             <p className="text-gray-600">API URL: {API_URL}</p>
             <p className="text-gray-600">Mode: {import.meta.env.MODE}</p>
+            <p className="text-gray-600">Cookies: {document.cookie ? 'Enabled' : 'None'}</p>
           </div>
         )}
       </div>
