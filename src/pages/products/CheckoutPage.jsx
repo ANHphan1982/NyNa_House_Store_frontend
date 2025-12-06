@@ -23,7 +23,7 @@ const CheckoutPage = () => {
   const [loading, setLoading] = useState(false);
   const [loadingPrevious, setLoadingPrevious] = useState(false);
   const [error, setError] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('cod');
+  const [paymentMethod, setPaymentMethod] = useState('COD');
   const [previousOrderLoaded, setPreviousOrderLoaded] = useState(false);
 
   // 🔥 FETCH PREVIOUS ORDER DATA
@@ -541,8 +541,8 @@ const CheckoutPage = () => {
                     <input
                       type="radio"
                       name="paymentMethod"
-                      value="cod"
-                      checked={paymentMethod === 'cod'}
+                      value="COD"
+                      checked={paymentMethod === 'COD'}
                       onChange={(e) => setPaymentMethod(e.target.value)}
                       className="w-4 h-4 text-rose-600 focus:ring-rose-500"
                       disabled={loading}
