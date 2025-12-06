@@ -60,10 +60,10 @@ const router = createBrowserRouter(
                     path: "/cart",
                     element: <CartPage />
                 },
-                {
-                    path: "/checkout",
-                    element: <PrivateRoute><CheckoutPage /></PrivateRoute>
-                },
+                //{
+                   // path: "/checkout",
+                    //element: <PrivateRoute><CheckoutPage /></PrivateRoute>
+                //},
                 {
                     path: "/products/:id",
                     element: <SingleProduct />
