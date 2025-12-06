@@ -1,102 +1,128 @@
-import React from 'react'
-import { FiShoppingCart } from "react-icons/fi"
-import { useParams } from "react-router-dom"
-
-import { getImgUrl } from '../../utils/getImgUrl';
+// frontend/src/components/ProductCard.jsx
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import { addToCart } from '../../redux/features/cart/cartSlice';
-import { useFetchBookByIdQuery } from '../../redux/features/books/booksApi';
+import { FiShoppingCart } from 'react-icons/fi';
+import { addToCart } from '../redux/features/cart/cartSlice';
 
-const SingleProduct = () => {
-    const { id } = useParams();
-    const { data: product, isLoading, isError, error } = useFetchBookByIdQuery(id);
+const ProductCard = ({ product }) => {
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const [imageError, setImageError] = useState(false);
 
-    const dispatch = useDispatch();
+  // Default placeholder image
+  const placeholderImage = 'https://via.placeholder.com/400x400?text=No+Image';
 
-    const handleAddToCart = (product) => {
-        dispatch(addToCart(product))
-    }
+  const handleImageError = () => {
+    console.log('❌ Image load failed:', product.image);
+    setImageError(true);
+  };
 
-    // Loading state
-    if (isLoading) {
-        return (
-            <div className="max-w-lg mx-auto shadow-md p-5 mt-10">
-                <div className="text-center">Đang tải...</div>
-            </div>
-        )
-    }
+  const handleProductClick = () => {
+    // 🔥 FIX: Always use _id (ObjectId) for navigation
+    console.log('📍 Navigating to product:', product._id);
+    navigate(`/products/${product._id}`);
+  };
 
-    // Error state
-    if (isError) {
-        return (
-            <div className="max-w-lg mx-auto shadow-md p-5 mt-10">
-                <div className="text-red-600">
-                    <p className="font-bold">Lỗi khi tải thông tin sản phẩm</p>
-                    <p className="text-sm mt-2">
-                        {error?.data?.message || error?.error || 'Lỗi không xác định'}
-                    </p>
-                    <p className="text-sm mt-2 text-gray-600">
-                        Mã sản phẩm: {id}
-                    </p>
-                </div>
-            </div>
-        )
-    }
+  const handleAddToCart = (e) => {
+    e.stopPropagation(); // Prevent navigation when clicking cart button
+    dispatch(addToCart(product));
+  };
 
-    // Product not found
-    if (!product) {
-        return (
-            <div className="max-w-lg mx-auto shadow-md p-5 mt-10">
-                <div className="text-center">
-                    <p className="text-lg font-semibold">Không tìm thấy sản phẩm</p>
-                    <p className="text-sm text-gray-600 mt-2">ID: {id}</p>
-                </div>
-            </div>
-        )
-    }
+  // Format price
+  const formatPrice = (price) => {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND'
+    }).format(price);
+  };
 
-    // Render product details
-    return (
-        <div className="max-w-lg shadow-md p-5 mx-auto mt-10">
-            <h1 className="text-2xl font-bold mb-6">{product.title}</h1>
+  return (
+    <div 
+      onClick={handleProductClick}
+      className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 cursor-pointer"
+    >
+      {/* Product Image */}
+      <div className="relative h-64 overflow-hidden bg-gray-100">
+        <img
+          src={imageError ? placeholderImage : product.image}
+          alt={product.name}
+          onError={handleImageError}
+          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+        />
+        
+        {/* Stock Badge */}
+        {product.stock <= 0 && (
+          <div className="absolute top-2 right-2 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-semibold">
+            Hết hàng
+          </div>
+        )}
+        
+        {/* Discount Badge */}
+        {product.oldPrice && product.oldPrice > product.price && (
+          <div className="absolute top-2 left-2 bg-rose-500 text-white px-3 py-1 rounded-full text-sm font-semibold">
+            -{Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)}%
+          </div>
+        )}
+      </div>
 
-            <div className=''>
-                <div>
-                    <img
-                        src={`${getImgUrl(product.coverImage)}`}
-                        alt={product.title}
-                        className="mb-8 w-full object-cover rounded"
-                    />
-                </div>
+      {/* Product Info */}
+      <div className="p-4">
+        {/* Category */}
+        {product.category && (
+          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
+            {product.category}
+          </p>
+        )}
 
-                <div className='mb-5'>
-                    <p className="text-gray-700 mb-2">
-                        <strong>Tác giả:</strong> {product.author || 'admin'}
-                    </p>
-                    <p className="text-gray-700 mb-4">
-                        <strong>Ngày xuất bản:</strong> {new Date(product?.createdAt).toLocaleDateString('vi-VN')}
-                    </p>
-                    <p className="text-gray-700 mb-4 capitalize">
-                        <strong>Danh mục:</strong> {product?.category}
-                    </p>
-                    <p className="text-gray-700">
-                        <strong>Mô tả:</strong> {product.description}
-                    </p>
-                </div>
+        {/* Product Name */}
+        <h3 className="text-lg font-semibold text-gray-800 mb-2 line-clamp-2 hover:text-rose-600 transition-colors">
+          {product.name || product.title}
+        </h3>
 
-                <button
-                    onClick={() => handleAddToCart(product)}
-                    className="btn-primary px-6 space-x-1 flex items-center gap-1"
-                >
-                    <FiShoppingCart className="" />
-                    <span>Thêm vào giỏ</span>
-                </button>
-            </div>
+        {/* Description */}
+        {product.description && (
+          <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+            {product.description}
+          </p>
+        )}
+
+        {/* Price Section */}
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-xl font-bold text-rose-600">
+              {formatPrice(product.price)}
+            </p>
+            {product.oldPrice && product.oldPrice > product.price && (
+              <p className="text-sm text-gray-400 line-through">
+                {formatPrice(product.oldPrice)}
+              </p>
+            )}
+          </div>
+          
+          {/* Stock Info */}
+          <div className="text-right">
+            <p className="text-xs text-gray-500">
+              Còn lại: <span className="font-semibold">{product.stock}</span>
+            </p>
+          </div>
         </div>
-    )
-}
 
-export default SingleProduct
+        {/* Add to Cart Button */}
+        <button
+          onClick={handleAddToCart}
+          disabled={product.stock <= 0}
+          className="w-full btn-primary px-4 py-2 flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed"
+        >
+          <FiShoppingCart className="text-lg" />
+          <span>{product.stock > 0 ? 'Thêm vào giỏ' : 'Hết hàng'}</span>
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default ProductCard;
 
 
 
