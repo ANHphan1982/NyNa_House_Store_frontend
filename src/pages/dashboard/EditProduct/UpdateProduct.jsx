@@ -248,7 +248,7 @@ const UpdateProduct = () => {
 
       // 🔥 CALL API BACKEND (GIỮ NGUYÊN)
       const response = await fetch(`${API_URL}/api/products/${id}`, {
-        method: 'PUT',
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
