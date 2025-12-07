@@ -21,6 +21,7 @@
     "react-icons": "^5.5.0",
     "react-redux": "^9.2.0",
     "react-router-dom": "^6.30.2",
+    "recharts": "^3.5.1",
     "sweetalert2": "^11.26.3",
     "swiper": "^12.0.3"
   },
