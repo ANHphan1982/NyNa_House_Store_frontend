@@ -16,6 +16,7 @@ import UpdateProduct from "../pages/dashboard/EditProduct/UpdateProduct";
 import ManageProducts from "../pages/dashboard/manageProducts/ManageProducts";
 import ManageOrders from "../pages/dashboard/ManageOrders";
 import OrderDetail from "../pages/dashboard/OrderDetail";
+import CustomerList from "../pages/dashboard/CustomerList";
 
 // User Pages
 import UserDashboard from "../pages/user/UserDashboard";
@@ -125,6 +126,10 @@ const router = createBrowserRouter(
         {
             path: "/dashboard/orders/:id",
             element: <AdminRoute><OrderDetail /></AdminRoute>
+        },
+        {
+            path: "/dashboard/customers",
+            element: <AdminRoute><CustomerList /></AdminRoute>
         }
     ],
     {

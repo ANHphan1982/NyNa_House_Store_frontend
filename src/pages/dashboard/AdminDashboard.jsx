@@ -12,9 +12,20 @@ import {
   Edit,
   Eye,
   UserPlus,
-  ArrowUpRight,
-  ArrowDownRight
+  ArrowUpRight
 } from 'lucide-react';
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer
+} from 'recharts';
 import API_URL from '../../utils/api';
 
 const AdminDashboard = () => {
@@ -28,6 +39,10 @@ const AdminDashboard = () => {
     lowStockProducts: 0
   });
   const [recentOrders, setRecentOrders] = useState([]);
+  const [chartData, setChartData] = useState({
+    orders: [],
+    revenue: []
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -88,11 +103,70 @@ const AdminDashboard = () => {
         .slice(0, 5);
       setRecentOrders(recent);
 
+      // Prepare chart data (last 7 days)
+      prepareChartData(orders);
+
     } catch (error) {
       console.error('❌ Error fetching dashboard data:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const prepareChartData = (orders) => {
+    // Get last 7 days
+    const last7Days = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      date.setHours(0, 0, 0, 0);
+      last7Days.push(date);
+    }
+
+    // Group orders by date
+    const ordersByDate = {};
+    const revenueByDate = {};
+
+    last7Days.forEach(date => {
+      const dateStr = date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+      ordersByDate[dateStr] = 0;
+      revenueByDate[dateStr] = 0;
+    });
+
+    orders.forEach(order => {
+      const orderDate = new Date(order.createdAt);
+      orderDate.setHours(0, 0, 0, 0);
+      
+      // Check if order is in last 7 days
+      if (orderDate >= last7Days[0]) {
+        const dateStr = orderDate.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+        
+        if (ordersByDate.hasOwnProperty(dateStr)) {
+          ordersByDate[dateStr]++;
+          
+          // Only count revenue for delivered orders
+          if (order.status === 'delivered') {
+            revenueByDate[dateStr] += order.totalAmount || 0;
+          }
+        }
+      }
+    });
+
+    // Prepare data for charts
+    const ordersChartData = Object.keys(ordersByDate).map(date => ({
+      date,
+      orders: ordersByDate[date]
+    }));
+
+    const revenueChartData = Object.keys(revenueByDate).map(date => ({
+      date,
+      revenue: Math.round(revenueByDate[date] / 1000) // Convert to thousands for better display
+    }));
+
+    setChartData({
+      orders: ordersChartData,
+      revenue: revenueChartData
+    });
   };
 
   const formatPrice = (price) => {
@@ -169,11 +243,6 @@ const AdminDashboard = () => {
               <div className="p-3 bg-white bg-opacity-20 rounded-lg">
                 <Package size={24} />
               </div>
-              {stats.lowStockProducts > 0 && (
-                <span className="px-2 py-1 bg-yellow-500 text-xs font-semibold rounded-full">
-                  {stats.lowStockProducts} sắp hết
-                </span>
-              )}
             </div>
             <div>
               <p className="text-blue-100 text-sm font-medium">Tổng sản phẩm</p>
@@ -194,11 +263,6 @@ const AdminDashboard = () => {
               <div className="p-3 bg-white bg-opacity-20 rounded-lg">
                 <ShoppingCart size={24} />
               </div>
-              {stats.pendingOrders > 0 && (
-                <span className="px-2 py-1 bg-yellow-500 text-xs font-semibold rounded-full">
-                  {stats.pendingOrders} chờ xử lý
-                </span>
-              )}
             </div>
             <div>
               <p className="text-purple-100 text-sm font-medium">Tổng đơn hàng</p>
@@ -298,7 +362,7 @@ const AdminDashboard = () => {
             </div>
           </button>
 
-          {/* Customer Info - NEW */}
+          {/* Customer Info */}
           <button
             onClick={() => navigate('/dashboard/customers')}
             className="group flex items-center gap-4 p-4 bg-gradient-to-br from-rose-50 to-rose-100 hover:from-rose-100 hover:to-rose-200 rounded-lg transition-all duration-200 transform hover:scale-105"
@@ -311,6 +375,97 @@ const AdminDashboard = () => {
               <p className="text-sm text-gray-600">Xem danh sách KH</p>
             </div>
           </button>
+        </div>
+      </div>
+
+      {/* Charts Section - 2 Columns */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Orders Chart */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Đơn hàng 7 ngày qua</h2>
+              <p className="text-sm text-gray-600 mt-1">Số lượng đơn hàng theo ngày</p>
+            </div>
+            <div className="p-3 bg-purple-100 rounded-lg">
+              <ShoppingCart size={24} className="text-purple-600" />
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={chartData.orders}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis 
+                dataKey="date" 
+                tick={{ fill: '#6b7280', fontSize: 12 }}
+                axisLine={{ stroke: '#e5e7eb' }}
+              />
+              <YAxis 
+                tick={{ fill: '#6b7280', fontSize: 12 }}
+                axisLine={{ stroke: '#e5e7eb' }}
+              />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: '#fff',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                }}
+                labelStyle={{ color: '#111827', fontWeight: 'bold' }}
+              />
+              <Bar 
+                dataKey="orders" 
+                fill="#9333ea" 
+                radius={[8, 8, 0, 0]}
+                name="Đơn hàng"
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Revenue Chart */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Doanh thu 7 ngày qua</h2>
+              <p className="text-sm text-gray-600 mt-1">Doanh thu theo ngày (nghìn đồng)</p>
+            </div>
+            <div className="p-3 bg-rose-100 rounded-lg">
+              <DollarSign size={24} className="text-rose-600" />
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={chartData.revenue}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis 
+                dataKey="date" 
+                tick={{ fill: '#6b7280', fontSize: 12 }}
+                axisLine={{ stroke: '#e5e7eb' }}
+              />
+              <YAxis 
+                tick={{ fill: '#6b7280', fontSize: 12 }}
+                axisLine={{ stroke: '#e5e7eb' }}
+              />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: '#fff',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                }}
+                labelStyle={{ color: '#111827', fontWeight: 'bold' }}
+                formatter={(value) => [`${value}k VNĐ`, 'Doanh thu']}
+              />
+              <Line 
+                type="monotone" 
+                dataKey="revenue" 
+                stroke="#f43f5e" 
+                strokeWidth={3}
+                dot={{ fill: '#f43f5e', r: 5 }}
+                activeDot={{ r: 7 }}
+                name="Doanh thu"
+              />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
@@ -407,69 +562,6 @@ const AdminDashboard = () => {
           </div>
         )}
       </div>
-
-      {/* Alerts Section */}
-      {(stats.pendingOrders > 0 || stats.lowStockProducts > 0) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Pending Orders Alert */}
-          {stats.pendingOrders > 0 && (
-            <div className="bg-gradient-to-r from-yellow-50 to-yellow-100 border-l-4 border-yellow-500 rounded-lg p-4">
-              <div className="flex items-start">
-                <div className="flex-shrink-0">
-                  <Clock className="h-6 w-6 text-yellow-600" />
-                </div>
-                <div className="ml-3 flex-1">
-                  <h3 className="text-sm font-medium text-yellow-800">
-                    Đơn hàng chờ xử lý
-                  </h3>
-                  <div className="mt-2 text-sm text-yellow-700">
-                    <p>
-                      Bạn có <strong>{stats.pendingOrders}</strong> đơn hàng cần xử lý.
-                    </p>
-                  </div>
-                  <div className="mt-4">
-                    <button
-                      onClick={() => navigate('/dashboard/manage-orders')}
-                      className="text-sm font-medium text-yellow-800 hover:text-yellow-900 underline"
-                    >
-                      Xem ngay →
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Low Stock Alert */}
-          {stats.lowStockProducts > 0 && (
-            <div className="bg-gradient-to-r from-red-50 to-red-100 border-l-4 border-red-500 rounded-lg p-4">
-              <div className="flex items-start">
-                <div className="flex-shrink-0">
-                  <Package className="h-6 w-6 text-red-600" />
-                </div>
-                <div className="ml-3 flex-1">
-                  <h3 className="text-sm font-medium text-red-800">
-                    Sản phẩm sắp hết hàng
-                  </h3>
-                  <div className="mt-2 text-sm text-red-700">
-                    <p>
-                      Có <strong>{stats.lowStockProducts}</strong> sản phẩm có số lượng dưới 10.
-                    </p>
-                  </div>
-                  <div className="mt-4">
-                    <button
-                      onClick={() => navigate('/dashboard/manage-products')}
-                      className="text-sm font-medium text-red-800 hover:text-red-900 underline"
-                    >
-                      Nhập hàng ngay →
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 };
