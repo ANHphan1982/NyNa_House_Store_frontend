@@ -34,7 +34,7 @@ const OrderDetail = () => {
       console.log('🔍 Fetching order from:', `${API_URL}/api/orders/${id}`);
 
       const response = await fetch(`${API_URL}/api/orders/${id}`, {
-        method: 'POST',  // ✅ CORRECT: Use POST
+        method: 'GET',  // ✅ CORRECT: Use POST
         headers: {
           'Authorization': `Bearer ${token}`
         }
