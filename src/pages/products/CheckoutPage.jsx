@@ -29,7 +29,7 @@ const CheckoutPage = () => {
     address: '',
     ward: '',
     district: '',
-    city: 'TP. Hồ Chí Minh'
+    city: ''
   });
 
   const [paymentMethod, setPaymentMethod] = useState('COD');
